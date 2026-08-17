@@ -1,6 +1,6 @@
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <title>citefact</title>
-  <rect width="512" height="512" rx="115" fill="#262b34"/>
+  <rect width="512" height="512" fill="#262b34"/>
   <text x="96" y="404" font-family="Georgia, 'Times New Roman', serif" font-size="430" fill="#f2eee3">&#8220;</text>
   <path d="M280 330 l52 52 l96 -96" fill="none" stroke="#db9f2f" stroke-width="46" stroke-linecap="square"/>
 </svg>
