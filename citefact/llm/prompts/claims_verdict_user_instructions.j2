@@ -1,0 +1,26 @@
+Verify this claim against the source paper above.
+
+CLAIM FROM MANUSCRIPT:
+"{{ claim_text }}"
+{% if numbers_context %}
+{{ numbers_context }}
+{% endif %}
+
+Tasks:
+1. Search the paper for evidence supporting or contradicting the claim
+2. Pay special attention to any specific numbers or statistics
+3. Consider context and nuance (is the claim fair to the source?)
+4. Determine the appropriate verdict. If you cannot tell from the text, return `null` -- do NOT guess.
+
+Respond with this exact JSON structure:
+{
+    "verdict": "supported" | "partial" | "misrepresented" | "not_in_paper" | null,
+    "confidence": 0-100 integer (how confident you are in this verdict),
+    "evidence": "Direct quote or paraphrase from the paper that relates to the claim",
+    "source_location": "Section or context where evidence was found (e.g., 'Results, paragraph 3')",
+    "reasoning": [
+        "First reason for this verdict",
+        "Second reason (e.g., number comparison)",
+        "Additional context if needed"
+    ]
+}

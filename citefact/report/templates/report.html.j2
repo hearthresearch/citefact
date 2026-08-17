@@ -1,0 +1,422 @@
+{#- Design language: Tailwind-gray page
+    on #f9fafb, white rounded-xl cards, a 3px status rail per finding row,
+    verdict badges with thin-stroke inline SVG icons, violet reserved for
+    AI, indigo for structure, emerald/amber/orange/rose for verdicts.
+    Self-contained: inline CSS/JS, HTML5 inline <svg> (no xmlns), no
+    external requests of any kind. -#}
+{%- macro icon(name, size=14) -%}
+  {%- if name == "check-circle" -%}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+  {%- elif name == "alert-circle" -%}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+  {%- elif name == "alert-triangle" -%}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+  {%- elif name == "x-circle" -%}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+  {%- elif name == "quote" -%}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21c3 0 7-1 7-8V5c0-1.25-.756-2.017-2-2H4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2 1 0 1 0 1 1v1c0 1-1 2-2 2s-1 .008-1 1.031V20c0 1 0 1 1 1z"/><path d="M15 21c3 0 7-1 7-8V5c0-1.25-.757-2.017-2-2h-4c-1.25 0-2 .75-2 1.972V11c0 1.25.75 2 2 2h.75c0 2.25.25 4-2.75 4v3c0 1 0 1 1 1z"/></svg>
+  {%- elif name == "map-pin" -%}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+  {%- elif name == "sparkles" -%}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/></svg>
+  {%- elif name == "file-text" -%}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+  {%- elif name == "book-open" -%}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+  {%- endif -%}
+{%- endmacro -%}
+{%- set verdict_meta = {
+    "supported":      {"icon": "check-circle",  "label": "supported"},
+    "partial":        {"icon": "alert-circle",  "label": "partial"},
+    "misrepresented": {"icon": "alert-triangle","label": "misrepresented"},
+    "not_in_paper":   {"icon": "x-circle",      "label": "not in paper"},
+    "unverified":     {"icon": "alert-circle",  "label": "AI couldn't decide"},
+} -%}
+{%- macro secchip(items) -%}
+  {%- set errs = items | selectattr("severity", "equalto", "error") | list | length -%}
+  {%- set warns = items | selectattr("severity", "equalto", "warning") | list | length -%}
+  {%- if errs -%}<span class="secchip err">{{ errs }} error{{ "s" if errs != 1 }}</span>{%- endif -%}
+  {%- if warns -%}<span class="secchip warn">{{ warns }} warning{{ "s" if warns != 1 }}</span>{%- endif -%}
+  {%- if not errs and not warns -%}<span class="secchip ok">{{ icon("check-circle", 11) }} clean</span>{%- endif -%}
+{%- endmacro -%}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>citefact report: {{ report.manuscript.file }}</title>
+<style>
+/* Tailwind-derived tokens (no dark mode by design) */
+:root{
+  --gray-50:#f9fafb; --gray-100:#f3f4f6; --gray-200:#e5e7eb; --gray-300:#d1d5db;
+  --gray-400:#9ca3af; --gray-500:#6b7280; --gray-600:#4b5563; --gray-700:#374151;
+  --gray-800:#1f2937; --gray-900:#111827;
+  --emerald-100:#d1fae5; --emerald-400:#34d399; --emerald-500:#10b981; --emerald-600:#059669;
+  --amber-50:#fffbeb; --amber-100:#fef3c7; --amber-200:#fde68a; --amber-400:#fbbf24; --amber-700:#b45309;
+  --orange-100:#ffedd5; --orange-400:#fb923c; --orange-700:#c2410c;
+  --rose-100:#ffe4e6; --rose-400:#fb7185; --rose-700:#be123c;
+  --violet-50:#f5f3ff; --violet-100:#ede9fe; --violet-300:#c4b5fd;
+  --violet-500:#8b5cf6; --violet-600:#7c3aed; --violet-700:#6d28d9;
+  --indigo-100:#e0e7ff; --indigo-500:#6366f1; --indigo-600:#4f46e5;
+  --slate-100:#f1f5f9; --slate-600:#475569;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--gray-50);color:var(--gray-800);
+     font:14px/1.55 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif}
+main{max-width:920px;margin:0 auto;padding:1.5rem 1rem 4rem}
+svg{flex:none;vertical-align:-2px}
+.tnum{font-variant-numeric:tabular-nums}
+
+/* Page header */
+.pagehead{display:flex;align-items:center;gap:.75rem;margin-bottom:1rem}
+.pagehead .chip{width:38px;height:38px;border-radius:.75rem;background:var(--indigo-100);
+                color:var(--indigo-600);display:flex;align-items:center;justify-content:center}
+.pagehead h1{font-size:1.25rem;font-weight:700;color:var(--gray-900);margin:0}
+.pagehead .sub{font-size:.75rem;color:var(--gray-500)}
+.pagehead .right{margin-left:auto;text-align:right;font-size:.75rem;color:var(--gray-500)}
+
+.banner{background:var(--amber-50);border:1px solid var(--amber-200);border-radius:.75rem;
+        padding:.6rem 1rem;margin:.75rem 0;color:var(--amber-700);font-size:.85rem}
+
+/* Sticky toolbar: counters + filters */
+.toolbar{position:sticky;top:0;z-index:10;background:var(--gray-50);
+         border-bottom:1px solid var(--gray-200);padding:.85rem 0 1rem;margin-bottom:1.25rem}
+.sevchips{display:flex;gap:.35rem;justify-content:flex-end;margin-bottom:.35rem}
+.vfilters{margin:0 0 .75rem}
+.filters{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.75rem;align-items:center}
+.filters .flabel{font-size:.7rem;color:var(--gray-400);text-transform:uppercase;letter-spacing:.05em}
+.pillbtn{display:inline-flex;align-items:center;gap:.3rem;font-size:.75rem;font-weight:500;
+         border:1px solid var(--gray-200);border-radius:.5rem;padding:.15rem .6rem;
+         background:#fff;color:var(--gray-600);cursor:pointer;user-select:none}
+.pillbtn input{display:none}
+.pillbtn:has(input:checked){border-color:var(--violet-500);background:var(--violet-50);color:var(--violet-700)}
+.vcount{background:var(--gray-100);color:var(--gray-600);border-radius:999px;
+        font-size:.65rem;font-weight:600;padding:0 .4rem;margin-left:.1rem}
+.pillbtn:has(input:checked) .vcount{background:var(--violet-100);color:var(--violet-700)}
+.seg{display:inline-flex;background:var(--gray-100);border-radius:.5rem;padding:2px;gap:2px}
+.seg label{font-size:.75rem;font-weight:500;color:var(--gray-600);padding:.15rem .6rem;
+           border-radius:.4rem;cursor:pointer;user-select:none}
+.seg input{display:none}
+.seg label:has(input:checked){background:#fff;color:var(--gray-900);
+                              box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.tabbar{display:flex;gap:.25rem;border-bottom:1px solid var(--gray-200);margin-bottom:.35rem}
+.tabbar label{display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;user-select:none;
+              padding:.45rem .85rem;margin-bottom:-1px;font-size:.85rem;color:var(--gray-500);
+              border-bottom:2px solid transparent}
+.tabbar label:hover{color:var(--gray-700)}
+.tabbar input{display:none}
+.tabbar label:has(input:checked){color:var(--gray-900);font-weight:600;
+                                 border-bottom-color:var(--violet-600)}
+.tabbar .secchip{margin-left:0}
+
+/* Section headings */
+h2{font-size:.95rem;font-weight:600;color:var(--gray-900);margin:1.75rem 0 .5rem;
+   display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+h2 .q{font-weight:400;color:var(--gray-500)}
+.secchip{display:inline-flex;align-items:center;gap:.25rem;font-size:.7rem;font-weight:600;
+         border-radius:999px;padding:.1rem .55rem;margin-left:auto}
+.secchip+.secchip{margin-left:.3rem}
+.secchip.err{background:var(--rose-100);color:var(--rose-700)}
+.secchip.warn{background:var(--amber-100);color:var(--amber-700)}
+.secchip.ok{background:var(--emerald-100);color:var(--emerald-600)}
+.secchip.na{background:var(--gray-100);color:var(--gray-500)}
+a.loc{color:inherit;text-decoration:none;border-bottom:1px dotted var(--gray-300)}
+a.loc:hover{color:var(--violet-700);border-bottom-color:var(--violet-500)}
+.filtered-note{border:1px dashed var(--gray-200);border-radius:.75rem;padding:.6rem 1rem;
+               color:var(--gray-400);font-size:.8rem;background:#fff}
+
+/* Cards and finding rows */
+.card{background:#fff;border:1px solid var(--gray-200);border-radius:.75rem;
+      box-shadow:0 1px 2px rgba(0,0,0,.05);overflow:hidden}
+.row{display:flex;border-top:1px solid var(--gray-100)}
+.row:first-child{border-top:none}
+.rail{width:3px;flex:none}
+.rail.error{background:var(--rose-400)} .rail.warning{background:var(--amber-400)}
+.rail.info{background:var(--emerald-400)}
+.rail.v-supported{background:var(--emerald-400)} .rail.v-partial{background:var(--amber-400)}
+.rail.v-misrepresented{background:var(--orange-400)} .rail.v-not_in_paper{background:var(--rose-400)}
+.rail.v-unverified{background:var(--violet-300)}
+.rowbody{flex:1;padding:.7rem 1rem;min-width:0}
+.badge{display:inline-flex;align-items:center;gap:.3rem;font-size:.72rem;font-weight:500;
+       border-radius:.25rem;padding:.1rem .5rem}
+.badge.b-error{background:var(--rose-100);color:var(--rose-700)}
+.badge.b-warning{background:var(--amber-100);color:var(--amber-700)}
+.badge.b-info{background:var(--emerald-100);color:var(--emerald-600)}
+.badge.v-supported{background:var(--emerald-100);color:var(--emerald-600)}
+.badge.v-partial{background:var(--amber-100);color:var(--amber-700)}
+.badge.v-misrepresented{background:var(--orange-100);color:var(--orange-700)}
+.badge.v-not_in_paper{background:var(--rose-100);color:var(--rose-700)}
+.badge.v-unverified{background:var(--gray-100);color:var(--gray-600)}
+.ftext{font-size:.85rem;color:var(--gray-800);margin:.3rem 0 0}
+.meta{font-size:.72rem;color:var(--gray-500);display:flex;align-items:center;gap:.35rem;
+      flex-wrap:wrap;margin-top:.3rem}
+.meta .dot{color:var(--gray-300)}
+code{font:.78em ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+     background:var(--slate-100);color:var(--slate-600);border-radius:.25rem;padding:.05rem .35rem}
+blockquote{margin:.4rem 0 0;padding:.5rem .75rem;background:#fff;border:1px solid var(--gray-200);
+           border-radius:.5rem;font-size:.83rem;font-style:italic;color:var(--gray-700)}
+del{background:var(--rose-100);text-decoration:line-through}
+ins{background:var(--emerald-100);text-decoration:none}
+
+/* Claims: group per source */
+details.source{background:#fff;border:1px solid var(--gray-200);border-radius:.75rem;
+               overflow:hidden;margin:.5rem 0;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+details.source>summary{cursor:pointer;padding:.65rem 1rem;background:rgba(249,250,251,.6);
+                       display:flex;align-items:center;gap:.5rem;font-weight:600;
+                       font-size:.85rem;color:var(--gray-900);list-style:none}
+details.source>summary::-webkit-details-marker{display:none}
+details.source>summary .count{margin-left:auto;font-weight:400;font-size:.72rem;color:var(--gray-500)}
+.aicard{background:var(--gray-50);border:1px solid var(--gray-200);border-radius:.5rem;
+        padding:.6rem .75rem;margin-top:.5rem}
+.aicard .ailabel{display:flex;align-items:center;gap:.35rem;font-size:.68rem;font-weight:600;
+                 color:var(--gray-500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:.35rem}
+.aibadge{display:inline-flex;align-items:center;gap:.25rem;background:var(--violet-100);
+         color:var(--violet-700);border-radius:999px;font-size:.68rem;font-weight:600;
+         padding:.1rem .5rem;margin-left:auto}
+.aicard blockquote{background:#fff}
+.aicard .why{font-size:.78rem;color:var(--gray-600);margin:.35rem 0 0}
+.srcloc{font-size:.72rem;color:var(--gray-400);margin-top:.25rem}
+
+/* Empty states */
+.empty{border:1px dashed var(--gray-200);border-radius:.75rem;padding:1.5rem;
+       text-align:center;color:var(--gray-500);font-size:.85rem;background:#fff}
+.empty svg{color:var(--gray-300);margin-bottom:.4rem}
+[hidden]{display:none!important}
+footer{margin-top:2.5rem;font-size:.72rem;color:var(--gray-400);text-align:center}
+</style>
+</head>
+<body>
+<main>
+
+<div class="pagehead">
+  <div class="chip">{{ icon("quote", 18) }}</div>
+  <div>
+    <h1>citefact report</h1>
+    <div class="sub">{% if manuscript_link %}<a class="loc" href="{{ manuscript_link }}">{{ report.manuscript.file }}</a>{% else %}{{ report.manuscript.file }}{% endif %} &middot; {{ report.manuscript.words }} words</div>
+  </div>
+  <div class="right tnum">
+    <div class="sevchips">
+      <span class="secchip {{ 'err' if report.summary.errors else 'ok' }}" id="count-errors">{{ report.summary.errors }} error{{ "s" if report.summary.errors != 1 }}</span>
+      <span class="secchip {{ 'warn' if report.summary.warnings else 'na' }}" id="count-warnings">{{ report.summary.warnings }} warning{{ "s" if report.summary.warnings != 1 }}</span>
+    </div>
+    {{ report.run.timestamp }}<br>
+    model: {{ report.run.model or "none (deterministic only)" }} &middot; ${{ "%.2f"|format(report.run.cost_usd) }}
+  </div>
+</div>
+
+{% if report.run.partial %}
+<div class="banner"><strong>Partial audit.</strong> Some claims could not be
+verified (LLM failures or truncation); unverified items are marked below.</div>
+{% endif %}
+
+<div class="toolbar">
+
+  <div class="tabbar">
+    <label><input type="radio" name="tab" value="all" checked>All</label>
+    <label><input type="radio" name="tab" value="citations">Citations
+      {{ secchip(citations_chip) }}</label>
+    <label><input type="radio" name="tab" value="quotes">Quotes
+      {{ secchip(by_level.quotes) }}</label>
+    <label><input type="radio" name="tab" value="claims">Claims
+      {% if "claims" not in report.run.levels %}<span class="secchip na">not run</span>
+      {% else %}{{ secchip(by_level.claims) }}{% endif %}</label>
+  </div>
+  <div class="filters">
+    <span class="flabel">show</span>
+    <div class="seg">
+      <label><input type="radio" name="sevmode" value="all" checked>All</label>
+      <label><input type="radio" name="sevmode" value="problems">Problems</label>
+      <label><input type="radio" name="sevmode" value="errors">Errors only</label>
+    </div>
+  </div>
+</div>
+
+<section class="sec" data-level="citations">
+<h2>Citations <span class="q">&middot; do they exist in the bibliography?</span>
+  {% if inventory %}<span class="secchip na">{{ inventory | length }} citation{{ "s" if inventory | length != 1 }}</span>{% endif %}
+  {{ secchip(citations_chip) }}</h2>
+{% if inventory %}
+<div class="card">
+  {% for c in inventory %}
+  <div class="row" data-severity="{{ 'error' if c.source_id is none else 'info' }}" data-type="citation">
+    <div class="rail {{ 'error' if c.source_id is none else 'info' }}"></div>
+    <div class="rowbody">
+      {% if c.source_id is none %}<span class="badge b-error">{{ icon("x-circle", 12) }} not in bibliography</span>
+      {% else %}<span class="badge b-info">{{ icon("check-circle", 12) }} resolved</span>{% endif %}
+      <div class="meta"><code>{{ c.citation }}</code>
+        {% if c.source_id is not none %}<span class="dot">&middot;</span>{% if pdf_links.get(c.source_id) %}<a class="loc" href="{{ pdf_links[c.source_id] }}"><code>{{ c.source_id }}</code></a>{% else %}<code>{{ c.source_id }}</code>{% endif %}{% endif %}
+        {% if c.count > 1 %}<span class="dot">&middot;</span>{{ c.count }}×{% endif %}
+        <span class="dot">&middot;</span>{{ icon("map-pin", 11) }} line{{ "s" if c.lines | length > 1 }} {{ c.lines | join(", ") }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% if by_level.citations %}
+<div class="card">
+  {% for f in by_level.citations %}
+  <div class="row" data-severity="{{ f.severity }}" data-type="{{ f.type }}">
+    <div class="rail {{ f.severity }}"></div>
+    <div class="rowbody">
+      <span class="badge b-{{ f.severity }}">{{ f.type.replace("_", " ") }}</span>
+      <div class="meta">
+        {% if f.citation is defined %}<code>{{ f.citation }}</code>{% endif %}
+        {% if f.source_id is defined %}<code>{{ f.source_id }}</code>{% endif %}
+        {% if f.title is defined %}<span>{{ f.title }}</span>{% endif %}
+        {% if f.location is defined %}<span class="dot">&middot;</span>{{ icon("map-pin", 11) }} line {{ f.location.line }}{% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% elif not uncited and not inventory %}
+<div class="empty">{{ icon("check-circle", 32) }}<br>No citation findings.</div>
+{% endif %}
+{% if uncited %}
+<details class="source">
+  <summary>{{ icon("book-open", 14) }}
+    <span class="badge b-{{ uncited[0].severity }}">uncited reference</span>
+    {{ uncited | length }} bibliography entries are never cited in the text
+    <span class="count tnum">expand to list</span></summary>
+  <div>
+  {% for f in uncited %}
+  <div class="row" data-severity="{{ f.severity }}" data-type="uncited_reference">
+    <div class="rail {{ f.severity }}"></div>
+    <div class="rowbody"><div class="meta"><code>{{ f.source_id }}</code><span>{{ f.title }}</span></div></div>
+  </div>
+  {% endfor %}
+  </div>
+</details>
+{% endif %}
+<div class="filtered-note" hidden>All findings in this section are hidden by the current filters.</div>
+</section>
+
+<section class="sec" data-level="quotes">
+<h2>Quotes <span class="q">&middot; are they verbatim in the source?</span>
+  {{ secchip(by_level.quotes) }}</h2>
+{% if by_level.quotes %}
+<div class="card">
+  {% for f in by_level.quotes %}
+  <div class="row" data-severity="{{ f.severity }}" data-type="{{ f.type }}">
+    <div class="rail {{ f.severity }}"></div>
+    <div class="rowbody">
+      <span class="badge b-{{ f.severity }}">{{ f.type.replace("_", " ") }}</span>
+      <div class="meta">
+        {% if f.source_id is defined %}{% if pdf_links.get(f.source_id) %}<a class="loc" href="{{ pdf_links[f.source_id] }}"><code>{{ f.source_id }}</code></a>{% else %}<code>{{ f.source_id }}</code>{% endif %}{% endif %}
+        {% if f.location is defined %}{{ icon("map-pin", 11) }} line {{ f.location.line }}{% endif %}
+      </div>
+      <blockquote>&ldquo;{{ f.quote }}&rdquo;</blockquote>
+      {% if f.diff_html is defined %}
+      <div class="srcloc">closest source match (similarity {{ f.similarity }}):</div>
+      <blockquote>{{ f.diff_html | safe }}</blockquote>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty">{{ icon("check-circle", 32) }}<br>No quote findings.</div>
+{% endif %}
+<div class="filtered-note" hidden>All findings in this section are hidden by the current filters.</div>
+</section>
+
+<section class="sec" data-level="claims">
+<h2>Claims <span class="q">&middot; does the source support them? AI suggests, you decide.</span>
+  {% if "claims" not in report.run.levels %}<span class="secchip na">not run</span>
+  {% else %}{{ secchip(by_level.claims) }}{% endif %}</h2>
+{% if report.summary.verdicts %}
+<div class="filters vfilters">
+  <span class="flabel">verdicts</span>
+  {% for verdict, n in report.summary.verdicts.items() %}
+  <label class="pillbtn"><input type="checkbox" class="verdict" value="{{ verdict }}" checked>{{ verdict_meta.get(verdict, {}).get("label", verdict) }}<span class="vcount tnum">{{ n }}</span></label>
+  {% endfor %}
+</div>
+{% endif %}
+{% for source_id, claim_findings in claims_by_source.items() %}
+<details class="source" open>
+  <summary>{{ icon("book-open", 14) }}
+    {{ sources_by_id.get(source_id, {}).get("title", source_id) }}
+    {% if pdf_links.get(source_id) %}<a class="loc" href="{{ pdf_links[source_id] }}"><code>{{ source_id }}</code></a>{% else %}<code>{{ source_id }}</code>{% endif %}
+    <span class="count tnum">{{ claim_findings | length }} claims</span></summary>
+  <div>
+  {% for f in claim_findings %}
+  <div class="row" data-severity="{{ f.severity }}" data-verdict="{{ f.verdict }}">
+    <div class="rail v-{{ f.verdict }}"></div>
+    <div class="rowbody">
+      {% set vm = verdict_meta.get(f.verdict, {"icon": "alert-circle", "label": f.verdict}) %}
+      <span class="badge v-{{ f.verdict }}">{{ icon(vm.icon, 12) }} {{ vm.label }}</span>
+      <p class="ftext">{{ f.claim }}</p>
+      <div class="aicard">
+        <div class="ailabel">{{ icon("sparkles", 12) }} AI Suggestion
+          <span class="aibadge">{{ icon("sparkles", 10) }} {{ f.confidence }}%</span></div>
+        {% if f.evidence %}<blockquote>&ldquo;{{ f.evidence }}&rdquo;</blockquote>{% endif %}
+        {% if f.reasoning %}<p class="why">{{ f.reasoning }}</p>{% endif %}
+        {% if f.error is defined %}<p class="why">error: {{ f.error }}</p>{% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+  </div>
+</details>
+{% else %}
+<div class="empty">{{ icon("file-text", 32) }}<br>
+  {% if "claims" not in report.run.levels %}Claims check not run (--skip-claims or --only without claims).
+  {% else %}No verifiable claims found.{% endif %}</div>
+{% endfor %}
+<div class="filtered-note" hidden>All findings in this section are hidden by the current filters.</div>
+</section>
+
+<footer>citefact {{ report.citefact_version }} &middot; schema v{{ report.schema_version }}
+&middot; {{ report.run.duration_seconds }}s &middot; verdicts are AI suggestions, not ground truth</footer>
+</main>
+<script>
+function apply() {
+  const mode = document.querySelector('input[name="sevmode"]:checked').value;
+  const sevOk = {
+    all: () => true,
+    problems: sev => sev !== "info",
+    errors: sev => sev === "error",
+  }[mode];
+  const onVerdict = new Set([...document.querySelectorAll(".verdict:checked")].map(c => c.value));
+  document.querySelectorAll(".row").forEach(el => {
+    const verdict = el.dataset.verdict;
+    // Findings without a verdict (citations/quotes) are unaffected by verdict filters.
+    const verdictOk = verdict === undefined || onVerdict.has(verdict);
+    el.hidden = !sevOk(el.dataset.severity) || !verdictOk;
+  });
+  document.querySelectorAll("section.sec").forEach(sec => {
+    sec.querySelectorAll("details.source").forEach(d => {
+      const drows = [...d.querySelectorAll(".row")];
+      d.hidden = drows.length > 0 && drows.every(r => r.hidden);
+    });
+    const rows = [...sec.querySelectorAll(".row")];
+    const note = sec.querySelector(".filtered-note");
+    if (note) note.hidden = !(rows.length > 0 && rows.every(r => r.hidden));
+  });
+}
+document.querySelectorAll(".filters input").forEach(i => i.addEventListener("change", apply));
+
+function applyTab() {
+  const tab = document.querySelector('input[name="tab"]:checked').value;
+  document.querySelectorAll("section.sec").forEach(sec => {
+    if (tab === "all" || sec.dataset.level === tab) {
+      sec.removeAttribute("hidden");
+    } else {
+      // "until-found" keeps hidden sections reachable by find-in-page in
+      // Chromium; other browsers treat it as plain hidden.
+      sec.setAttribute("hidden", "until-found");
+    }
+  });
+}
+document.querySelectorAll('input[name="tab"]').forEach(i => i.addEventListener("change", applyTab));
+document.querySelectorAll("section.sec").forEach(sec => {
+  sec.addEventListener("beforematch", () => {
+    // Find-in-page revealed a hidden section: sync the tab bar to it.
+    const radio = document.querySelector('input[name="tab"][value="' + sec.dataset.level + '"]');
+    if (radio) { radio.checked = true; }
+  });
+});
+applyTab();
+</script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+Extract claims with citations from this manuscript.
+
+Citation style detected: {{ citation_style }}.
+
+PRE-RESOLVED CITATIONS (a deterministic regex + fuzzy-match pass has
+already identified each in-text citation and resolved most to paper_ids;
+entries with `"paper_id": null` are citations whose author/year did not
+match any catalog entry):
+{{ resolved_citations }}
+
+AVAILABLE PAPERS (fallback catalog for any citation not covered by
+PRE-RESOLVED CITATIONS above; this is the manuscript's full bibliography):
+{{ corpus_info }}
+
+MANUSCRIPT TEXT:
+{{ manuscript_text }}
+
+For each claim found:
+1. Extract the `claim` text VERBATIM from the manuscript — do not paraphrase,
+   summarise, or rewrite. If a sentence carries multiple citations, emit one
+   claim per citation with the SAME verbatim sentence in each; only
+   `author` / `year` / `paper_id` differ. See the system prompt's CLAIM TEXT
+   MUST BE VERBATIM and MULTI-CITATION SENTENCES rules.
+2. Identify author/year from the citation
+3. Match to a paper_id:
+   - First, look for the citation span in PRE-RESOLVED CITATIONS. If the
+     span matches and `paper_id` is not null, USE THAT paper_id directly —
+     do not second-guess the match.
+   - Only when the citation doesn't appear in PRE-RESOLVED CITATIONS (or
+     the entry there has `paper_id: null`), fall back to matching from
+     AVAILABLE PAPERS by first_author_lastname + year.
+   - Return null for paper_id when no plausible catalog entry exists
+     (add the citation to `unmatched_citations` in your response).
+4. Extract any key numbers (percentages, statistics)
+5. Note the location in the manuscript
+
+Respond with this exact JSON structure:
+{
+    "claims": [
+        {
+            "claim": "Smith et al. (2023) found that 78% of participants...",
+            "author": "Smith",
+            "year": "2023",
+            "paper_id": "smith2023",
+            "key_numbers": ["78%"],
+            "manuscript_location": "Results, paragraph 2"
+        }
+    ],
+    "unmatched_citations": [
+        {
+            "author": "Jones",
+            "year": "2025",
+            "claim": "The claim text here..."
+        }
+    ],
+    "summary": "Extracted X claims from manuscript. Y matched to corpus, Z unmatched."
+}

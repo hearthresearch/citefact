@@ -1,0 +1,57 @@
+[project]
+name = "citefact"
+version = "0.1.0"
+description = "Audit a manuscript against the full text of its cited sources"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "José Fernandes", email = "jose@bloomidea.com" }]
+keywords = [
+    "citations",
+    "fact-checking",
+    "academic-writing",
+    "zotero",
+    "research-integrity",
+    "llm",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Text Processing :: Linguistic",
+]
+dependencies = [
+    "typer>=0.12",
+    "jinja2>=3.1",
+    "rapidfuzz>=3.0",
+    "litellm>=1.40",
+    "bibtexparser>=1.4,<2",
+    "pypdf>=4.0",
+    "pyzotero>=1.13.7",
+    "rich>=13",
+]
+
+[project.urls]
+Homepage = "https://github.com/hearthresearch/citefact"
+Repository = "https://github.com/hearthresearch/citefact"
+Issues = "https://github.com/hearthresearch/citefact/issues"
+
+[project.scripts]
+citefact = "citefact.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[tool.pytest.ini_options]
+markers = ["evals: LLM eval fixtures that cost money (needs --run-evals)"]

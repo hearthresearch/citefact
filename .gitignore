@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+.venv/
+dist/
+.citefact/
+citefact-report/
+.pytest_cache/
+CLAUDE.md
+.claude/
+docs/PRD.md
