@@ -39,6 +39,43 @@ def test_version():
     assert result.exit_code == 0 and f"citefact {citefact.__version__}" in result.output
 
 
+class TestHelpForAgents:
+    """The help text is the interface an agent drives the CLI from: it must
+    state exit codes, output locations and the report contract on its own."""
+
+    def test_root_help_states_exit_codes_and_env(self):
+        result = runner.invoke(app, ["--help"])
+        assert result.exit_code == 0
+        for needle in ("0 clean", "2 usage", "CITEFACT_CACHE", "report.json"):
+            assert needle in result.output
+
+    def test_help_command_matches_help_flag(self):
+        assert runner.invoke(app, ["help"]).output == runner.invoke(app, ["--help"]).output
+
+    def test_help_command_for_a_subcommand(self):
+        result = runner.invoke(app, ["help", "check"])
+        assert result.exit_code == 0
+        assert "schema_version" in result.output
+        assert "orphan_citation" in result.output
+
+    def test_dash_h_alias(self):
+        result = runner.invoke(app, ["convert", "-h"])
+        assert result.exit_code == 0 and "--pdfs" in result.output
+
+    def test_help_unknown_command_exits_2(self):
+        result = runner.invoke(app, ["help", "nope"])
+        assert result.exit_code == 2
+
+    def test_every_check_option_has_help(self):
+        result = runner.invoke(app, ["check", "--help"])
+        for opt in ("--bib", "--pdfs", "--out", "--skip-claims", "--only", "--model",
+                    "--provider", "--fail-on", "--json", "--quiet", "--force"):
+            assert opt in result.output
+        # Typer prints an option with no help as a bare row; every row here
+        # must carry a description, so no line ends right after its metavar.
+        assert "error, warning, or none" in result.output
+
+
 _BIB = """@article{smith2023,
   author = {Smith, John},
   title = {A Study of Things},

@@ -79,6 +79,18 @@ flowchart LR
 3. **Check** - citations and quotes are verified deterministically; claims are extracted verbatim and judged per (claim, source) pair by the LLM, evidence included.
 4. **Report** - a filterable single-file `report.html` plus a versioned `report.json` for CI.
 
+## 🤖 For agents and LLM tools
+
+An agent can drive citefact from `--help` alone: every command states what it writes, its exit codes and the shape of `report.json`, and `citefact help COMMAND` is the same text. The loop is three commands:
+
+```bash
+citefact doctor                                           # what is installed, exit 0 always
+citefact check manuscript.md --bib refs.bib --pdfs papers/ --skip-claims --json --quiet > report.json
+jq '.findings[] | select(.severity == "error") | {type, location, citation, quote}' report.json
+```
+
+Exit codes are the contract: `0` clean, `1` findings at or above `--fail-on`, `2` usage or execution error with the reason on stderr. Progress never touches stdout, so `--json` output is safe to pipe. Finding types are stable per level (`orphan_citation`, `missing_source`, `quote_modified`, `claim_verdict`, ...) and `report.json` carries `schema_version`; changes are listed in [CHANGELOG.md](CHANGELOG.md). Converted source text is shared with [pagebound](https://pypi.org/project/pagebound/), so an agent that wants to read a source itself can use `pagebound path` on the same cache.
+
 ## 📖 Usage
 
 | Command | What it does |

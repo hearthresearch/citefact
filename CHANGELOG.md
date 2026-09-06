@@ -2,6 +2,12 @@
 
 All notable changes to citefact. `report.json` carries `schema_version`; any change to its shape is recorded here.
 
+## 0.2.1 (2026-09-06)
+
+### Changed
+
+- Help text rewritten for agents: every command's `--help` states what it writes, its exit codes, what goes to stdout and stderr, and the `report.json` contract (finding types and severities per level); every option describes its allowed values. New `citefact help [COMMAND]` subcommand and `-h` alias. No behaviour change; `report.json` stays at schema 2.
+
 ## 0.2.0 (2026-09-06)
 
 ### Changed

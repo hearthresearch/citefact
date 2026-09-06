@@ -1,6 +1,6 @@
 [project]
 name = "citefact"
-version = "0.2.0"
+version = "0.2.1"
 description = "Audit a manuscript against the full text of its cited sources"
 readme = "README.md"
 requires-python = ">=3.11"
