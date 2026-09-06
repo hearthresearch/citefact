@@ -4,12 +4,19 @@ from pathlib import Path
 
 from typer.testing import CliRunner
 
+import citefact
 from citefact.cli import app
 from citefact.pipeline import exit_code_for
 
 runner = CliRunner()
 
 FIXTURES = Path(__file__).parent / "fixtures" / "demo"
+from citefact.ingest.convert import Converted
+
+def _converted(text: str, sha: str = "hash") -> Converted:
+    return Converted(text=text, sha256=sha, converter="docling", converter_version="0",
+                     converted_at="2026-09-06T00:00:00+00:00", text_layer=True)
+
 
 
 def test_exit_code_for_thresholds():
@@ -29,7 +36,7 @@ def test_check_requires_bib(tmp_path: Path):
 
 def test_version():
     result = runner.invoke(app, ["--version"])
-    assert result.exit_code == 0 and "citefact 0.1.0" in result.output
+    assert result.exit_code == 0 and f"citefact {citefact.__version__}" in result.output
 
 
 _BIB = """@article{smith2023,
@@ -76,7 +83,7 @@ def test_check_json_streams_report_to_stdout(tmp_path: Path):
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
-    assert payload["schema_version"] == 1
+    assert payload["schema_version"] == 2
     # --quiet silences progress; stdout carries only the JSON report.
 
 
@@ -144,7 +151,7 @@ def test_convert_honors_citefact_cache(tmp_path: Path, monkeypatch):
 
     def fake_convert_pdf(pdf_path, cache_dir, *, force=False):
         captured["cache_dir"] = cache_dir
-        return "converted text"
+        return _converted("converted text")
 
     monkeypatch.setattr("citefact.ingest.convert.convert_pdf", fake_convert_pdf)
 
@@ -168,9 +175,9 @@ def _seed(tmp_path: Path, monkeypatch):
     for sid in ("smith2023", "doe2021"):
         (pdf_dir / f"{sid}.pdf").write_bytes(b"%PDF-fake-" + sid.encode())
     texts = {sid: (work / "sources" / f"{sid}.md").read_text() for sid in ("smith2023", "doe2021")}
-    monkeypatch.setattr("citefact.pipeline.pdf_sha256", lambda p: f"hash-{p.stem}")
     monkeypatch.setattr(
-        "citefact.pipeline.convert_pdf", lambda p, c, force=False: texts[p.stem]
+        "citefact.pipeline.convert_pdf",
+        lambda p, c, force=False: _converted(texts[p.stem], sha=f"hash-{p.stem}"),
     )
     return work, pdf_dir
 
@@ -304,7 +311,7 @@ class TestProgressUx:
         (pdf_dir / "b.pdf").write_bytes(b"%PDF")
         monkeypatch.setenv("CITEFACT_CACHE", str(tmp_path / "cache"))
         monkeypatch.setattr(
-            "citefact.ingest.convert.convert_pdf", lambda p, c, force=False: "text"
+            "citefact.ingest.convert.convert_pdf", lambda p, c, force=False: _converted("text")
         )
         result = runner.invoke(app, ["convert", "--pdfs", str(pdf_dir)])
         assert result.exit_code == 0

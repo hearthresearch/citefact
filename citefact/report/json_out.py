@@ -14,7 +14,7 @@ from typing import Any
 import citefact
 from citefact.models import Finding, Manuscript, Source
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def build_report(
@@ -60,6 +60,7 @@ def build_report(
                 "id": s.id, "title": s.title, "authors": s.authors, "year": s.year,
                 "pdf": str(s.pdf_path) if s.pdf_path is not None else None,
                 "converted": s.converted,
+                "conversion": s.conversion,
             }
             for s in sources.values()
         ],

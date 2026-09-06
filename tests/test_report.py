@@ -9,7 +9,11 @@ from citefact.report.json_out import build_report, write_report_json
 def _report():
     m = Manuscript(path=Path("m.md"), text="x", sha256="s" * 64, words=100)
     sources = {"smith2023": Source(id="smith2023", title="T", authors="Smith, J.",
-                                   year=2023, pdf_path=Path("p/s.pdf"), text="t")}
+                                   year=2023, pdf_path=Path("p/s.pdf"), text="t",
+                                   conversion={"converter": "docling",
+                                               "converter_version": "2.125.0",
+                                               "converted_at": "2026-09-06T00:00:00+00:00",
+                                               "text_layer": False})}
     findings = [
         Finding("citations", "orphan_citation", "error", {"citation": "(X, 2024)"}),
         Finding("quotes", "quote_verified", "info", {"source_id": "smith2023"}),
@@ -24,19 +28,30 @@ def _report():
 
 def test_schema_shape():
     r = _report()
-    assert r["schema_version"] == 1
+    assert r["schema_version"] == 2
     assert r["manuscript"]["file"] == "m.md"
     assert r["run"]["model"] == "anthropic/claude-sonnet-5"
     assert r["summary"] == {"errors": 1, "warnings": 1, "claims_total": 1,
                             "verdicts": {"partial": 1}}
     assert r["sources"][0]["converted"] is True
+    assert r["sources"][0]["conversion"]["converter_version"] == "2.125.0"
+    assert r["sources"][0]["conversion"]["text_layer"] is False
     assert len(r["findings"]) == 3
+
+
+def test_unconverted_source_has_no_conversion():
+    m = Manuscript(path=Path("m.md"), text="x", sha256="s" * 64, words=1)
+    sources = {"x": Source(id="x", title="T", authors="A", year=2020)}
+    r = build_report(m, sources, [], levels=["citations"], model=None,
+                     cost_usd=0.0, duration_seconds=0.0)
+    assert r["sources"][0]["converted"] is False
+    assert r["sources"][0]["conversion"] is None
 
 
 def test_write_is_valid_json(tmp_path):
     p = write_report_json(_report(), tmp_path)
     assert p.name == "report.json"
-    assert json.loads(p.read_text())["schema_version"] == 1
+    assert json.loads(p.read_text())["schema_version"] == 2
 
 
 def test_word_diff_marks_insertions():

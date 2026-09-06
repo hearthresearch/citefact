@@ -15,7 +15,7 @@ from citefact.checks.citations import check_citations
 from citefact.checks.quotes import check_quotes
 from citefact.citations import pick_parser, resolve_to_catalog
 from citefact.ingest.bibliography import load_bibtex, to_catalog
-from citefact.ingest.convert import convert_pdf, pdf_sha256
+from citefact.ingest.convert import convert_pdf
 from citefact.ingest.manuscript import load_manuscript
 from citefact.ingest.pdfs import match_pdfs
 from citefact.ingest.zotero import load_zotero_collection
@@ -107,8 +107,11 @@ def run_check(
             phase="convert", message=source.pdf_path.name,
             current=i, total=len(to_convert),
         ))
-        source.content_hash = pdf_sha256(source.pdf_path)
-        source.text = convert_pdf(source.pdf_path, cache_dir, force=force)
+        converted = convert_pdf(source.pdf_path, cache_dir, force=force)
+        if converted is not None:
+            source.text = converted.text
+            source.content_hash = converted.sha256
+            source.conversion = converted.provenance()
 
     # Citation parsing runs once; all levels share the preprocessed text so
     # character offsets stay consistent (Zotero wrappers stripped here).

@@ -10,6 +10,12 @@ _BIB = """@article{smith2023,
   year = {2023},
 }
 """
+from citefact.ingest.convert import Converted
+
+def _converted(text: str, sha: str = "hash") -> Converted:
+    return Converted(text=text, sha256=sha, converter="docling", converter_version="0",
+                     converted_at="2026-09-06T00:00:00+00:00", text_layer=True)
+
 
 
 def test_run_check_claims_without_model_raises_value_error(tmp_path: Path):
@@ -62,10 +68,9 @@ def test_zotero_sources_with_pdf_paths_convert_without_pdf_dir(
 
     def fake_convert(p, cache_dir, force=False):
         converted.append(p)
-        return "full text with a sufficiently long quoted passage here inside"
+        return _converted("full text with a sufficiently long quoted passage here inside")
 
     monkeypatch.setattr("citefact.pipeline.convert_pdf", fake_convert)
-    monkeypatch.setattr("citefact.pipeline.pdf_sha256", lambda p: "hash")
 
     report = pipeline.run_check(
         m, bib_path=None, zotero_collection="My Papers", pdf_dir=None,
@@ -104,10 +109,9 @@ def test_match_pdfs_only_fills_sources_without_paths(tmp_path: Path, monkeypatch
 
     def fake_convert(p, cache_dir, force=False):
         seen[p.name] = True
-        return "text"
+        return _converted("text", sha=f"h-{p.name}")
 
     monkeypatch.setattr("citefact.pipeline.convert_pdf", fake_convert)
-    monkeypatch.setattr("citefact.pipeline.pdf_sha256", lambda p: f"h-{p.name}")
     monkeypatch.setattr("citefact.pipeline._pdf_probe", lambda p: ("", ""),
                         raising=False)
 
@@ -136,8 +140,7 @@ def test_convert_phase_emits_counted_events(tmp_path: Path, monkeypatch):
                               year=2021, pdf_path=pdf_b),
         },
     )
-    monkeypatch.setattr("citefact.pipeline.convert_pdf", lambda p, c, force=False: "text")
-    monkeypatch.setattr("citefact.pipeline.pdf_sha256", lambda p: "h")
+    monkeypatch.setattr("citefact.pipeline.convert_pdf", lambda p, c, force=False: _converted("text"))
 
     events: list[ProgressEvent] = []
     pipeline.run_check(

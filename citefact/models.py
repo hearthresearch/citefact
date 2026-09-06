@@ -47,6 +47,9 @@ class Source:
     pdf_path: Path | None = None
     content_hash: str | None = None  # sha256 of the PDF bytes
     text: str | None = None  # converted markdown; None = unavailable
+    # Conversion provenance (converter, version, timestamp, text_layer);
+    # None when the text is unavailable. text_layer False means OCR-derived.
+    conversion: dict[str, Any] | None = None
 
     @property
     def converted(self) -> bool:

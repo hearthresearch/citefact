@@ -14,6 +14,9 @@ import sys
 import urllib.request
 from dataclasses import dataclass
 
+from pagebound import DoclingUnavailableError
+from pagebound.convert import resolve_version as resolve_docling_version
+
 _DOCLING_PROBE_TIMEOUT = 20  # seconds; a warmed env answers in ~2 s
 _ZOTERO_URL = "http://localhost:23119/api/users/0/collections?limit=1"
 
@@ -51,32 +54,30 @@ def check_uv() -> Check:
     )
 
 
+def _probe_run(command: list[str], **kwargs):
+    """pagebound's own timeout is sized for a conversion; a diagnostic
+    must answer fast, so a cold Docling reads as "not warmed" rather than
+    blocking `doctor` on a model download."""
+    kwargs["timeout"] = _DOCLING_PROBE_TIMEOUT
+    return subprocess.run(command, **kwargs)
+
+
 def check_docling() -> Check:
-    if shutil.which("uvx") is None and shutil.which("uv") is None:
+    if shutil.which("uv") is None and shutil.which("uvx") is None:
         return Check(
             name="docling", status="missing",
             detail="cannot run without uv",
             hint="install uv first; docling is fetched automatically",
         )
     try:
-        result = subprocess.run(
-            ["uvx", "--from", "docling>=2.67.0", "docling", "--version"],
-            capture_output=True, text=True, timeout=_DOCLING_PROBE_TIMEOUT,
-        )
-    except (subprocess.TimeoutExpired, OSError):
+        version = resolve_docling_version(run=_probe_run)
+    except DoclingUnavailableError:
         return Check(
             name="docling", status="warn",
             detail="not warmed (first conversion downloads ~1-2 GB)",
             hint="run `citefact setup` to pre-download it",
         )
-    if result.returncode == 0:
-        version = result.stdout.strip().split("\n")[0]
-        return Check(name="docling", status="ok", detail=version)
-    return Check(
-        name="docling", status="warn",
-        detail=f"probe failed (exit {result.returncode})",
-        hint="run `citefact setup` to pre-download it",
-    )
+    return Check(name="docling", status="ok", detail=f"Docling version: {version}")
 
 
 def check_llm_env() -> Check:

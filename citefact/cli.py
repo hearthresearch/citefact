@@ -183,9 +183,11 @@ def _warm_docling() -> None:
     """Pre-download the Docling environment (one-time, ~1-2 GB)."""
     import subprocess
 
+    from pagebound.convert import DOCLING_SPEC
+
     typer.echo("Warming the Docling environment (one-time download, ~1-2 GB)...", err=True)
     subprocess.run(
-        ["uvx", "--from", "docling>=2.67.0", "docling", "--version"],
+        ["uv", "tool", "run", "--from", DOCLING_SPEC, "docling", "--version"],
         timeout=1800,
     )
 

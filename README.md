@@ -56,7 +56,7 @@ Every claim verdict (`supported` / `partial` / `misrepresented` / `not_in_paper`
 - 🔒 **Keyless mode** - `--skip-claims` catches fabricated citations and altered quotes with zero network calls
 - 🤖 **Your LLM, your key** - Anthropic, OpenAI, or fully local via Ollama, all through [LiteLLM](https://docs.litellm.ai/)
 - 📊 **One-file report** - self-contained HTML (no CDN, no requests), with every citation's status, word-level diffs for altered quotes, and one-click links to the manuscript and each source PDF
-- ⚡ **Cached everything** - PDF conversions, claim extraction, and verdicts are content-addressed; editing one paragraph re-verifies only what changed, and an unchanged re-run costs $0 in seconds
+- ⚡ **Cached everything** - PDF conversions, claim extraction, and verdicts are content-addressed; editing one paragraph re-verifies only what changed, and an unchanged re-run costs $0 in seconds. Conversions go through [pagebound](https://pypi.org/project/pagebound/), so a paper any other pagebound tool already converted is reused, never reconverted
 - 🕵️ **Private by construction** - no telemetry; the only writes are the cache and the report, and the only network traffic is your LLM provider
 
 ## ⚙️ How It Works
@@ -65,7 +65,7 @@ Every claim verdict (`supported` / `partial` / `misrepresented` / `not_in_paper`
 flowchart LR
     A[manuscript.md] --> D[Citation parser]
     B[Zotero / refs.bib] --> E[Bibliography catalog]
-    C[source PDFs] --> F[Docling conversion<br/>content-hash cache]
+    C[source PDFs] --> F[pagebound<br/>Docling, content-hash cache]
     D --> G[Citations check]
     E --> G
     F --> G
@@ -75,7 +75,7 @@ flowchart LR
 ```
 
 1. **Parse** - a deterministic parser extracts every in-text citation (narrative, parenthetical, multi-author lists, multi-citation groups) and resolves it against the bibliography by first-author surname + year.
-2. **Convert** - source PDFs become text via [Docling](https://github.com/docling-project/docling), cached by content hash.
+2. **Convert** - source PDFs become text via [pagebound](https://github.com/hearthresearch/pagebound), which runs [Docling](https://github.com/docling-project/docling) once per PDF and caches the result by content hash and converter version. Scanned PDFs are OCR'd, and the report says so.
 3. **Check** - citations and quotes are verified deterministically; claims are extracted verbatim and judged per (claim, source) pair by the LLM, evidence included.
 4. **Report** - a filterable single-file `report.html` plus a versioned `report.json` for CI.
 
@@ -126,6 +126,8 @@ Report: citefact-report/report.html
 
 Environment: `CITEFACT_CACHE` relocates the `.citefact/` cache (written next to the manuscript by default); `CITEFACT_MODEL` pins a model. `citefact convert` resolves its cache relative to the current directory, so run it from the manuscript's folder or set `CITEFACT_CACHE`.
 
+Converted PDFs live in `.citefact/pagebound/`, the project's own [pagebound](https://pypi.org/project/pagebound/) store. If you also have a shared pagebound cache (`~/.cache/pagebound`, or `PAGEBOUND_CACHE`), citefact reads it first and copies hits into the project store; it never writes to the shared cache.
+
 </details>
 
 <details>
@@ -170,7 +172,7 @@ uvx citefact check manuscript.md --bib refs.bib --model ollama/llama3.1
 - The first PDF conversion downloads the Docling environment (~1-2 GB, one-time) into the `uv` cache
 - Claim verdicts are AI suggestions with the usual LLM failure modes; that is why every verdict carries its evidence
 
-**Roadmap:** DOCX manuscripts → LaTeX (`\cite{}`) → numeric citation styles → stable JSON schema and JOSS submission. `report.json` already carries `schema_version` and is the contract for integrations.
+**Roadmap:** DOCX manuscripts → LaTeX (`\cite{}`) → numeric citation styles → stable JSON schema and JOSS submission. `report.json` already carries `schema_version` and is the contract for integrations; schema changes are listed in [CHANGELOG.md](CHANGELOG.md).
 
 <details>
 <summary><b>For developers</b></summary>
@@ -192,7 +194,7 @@ uv run pytest --run-evals  # opt-in LLM eval fixtures (costs money)
 ## 🤝 Acknowledgments
 
 - [LiteLLM](https://docs.litellm.ai/) for provider-agnostic LLM access
-- [Docling](https://github.com/docling-project/docling) for PDF-to-Markdown conversion
+- [pagebound](https://github.com/hearthresearch/pagebound) and [Docling](https://github.com/docling-project/docling) for PDF-to-Markdown conversion with page provenance
 - [ZotSeek](https://github.com/introfini/ZotSeek) - related tool: AI-powered semantic search for Zotero
 
 ---
