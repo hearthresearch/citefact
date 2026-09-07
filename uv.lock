@@ -1118,15 +1118,15 @@ wheels = [
 
 [[package]]
 name = "pagebound"
-version = "0.1.0"
+version = "0.2.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pypdfium2" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ed/f2/c29c39b752c7ba53e8ede2d7610d57ee366d03a66eb70962473e716bb467/pagebound-0.1.0.tar.gz", hash = "sha256:c6a0e89ad0210078057ce9d49b068ca06c083ddb5669628f58f9a2f5887f128e", size = 77361, upload-time = "2026-09-06T18:15:48.376Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e8/a4/dfd8da1b5965bf84091ee8bbac4e64cee68dbe873f20c6a4b6deb933c92b/pagebound-0.2.1.tar.gz", hash = "sha256:549409ea47fd79fbd523baf3ba22a649bf893ff840385595dbf5ebbc772ae302", size = 83673, upload-time = "2026-09-07T19:20:18.228Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fe/a0/2ec0da7f4e608e9455b541400174d60a2da8bf5e339ca7e03af11638641b/pagebound-0.1.0-py3-none-any.whl", hash = "sha256:d5fd370fb8f32f36a35773019d2c5dfe828e3d862642071b95f0bdbecc0e73a7", size = 43639, upload-time = "2026-09-06T18:15:47.065Z" },
+    { url = "https://files.pythonhosted.org/packages/d5/91/042516305d99adde60e5da69eb30eddbc858155221b423f6232e55407e16/pagebound-0.2.1-py3-none-any.whl", hash = "sha256:7e4833e2604e2ffbed0a032487205ba850be63f560d4f6d793dd619709777325", size = 47791, upload-time = "2026-09-07T19:20:16.931Z" },
 ]
 
 [[package]]
