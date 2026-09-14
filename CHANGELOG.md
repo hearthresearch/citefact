@@ -2,6 +2,22 @@
 
 All notable changes to citefact. `report.json` carries `schema_version`; any change to its shape is recorded here.
 
+## Unreleased
+
+### Fixed
+
+- The claims check no longer judges most papers on half their text. One source reached the model cut to 40,000 characters, roughly half a typical journal article converted to markdown, and the cut was silent: a claim supported in a discussion section came back `not_in_paper` with high confidence, which reads as a caught fabrication and was an artefact of the budget. The budget is now 300,000 characters (about a long article or a thesis chapter, whole), overridable with `CITEFACT_MAX_SOURCE_CHARS`.
+- Truncation, when it still happens, is always reported: the affected source ids in `summary.sources_truncated`, a `source_truncated` flag with the character counts on every verdict formed on a cut source, a banner and a per-claim badge in the HTML report, and a log warning during the run.
+
+### Changed
+
+- Verdict cache entries from before this change are invalidated (`PROMPT_VERSION` 2), since they were formed on less of the source than the same run would send today. The truncation budget is part of the cache key only when it actually bit, so raising it re-verifies the sources it affected and leaves the rest cached.
+
+### report.json schema 3
+
+- `summary.sources_truncated`: list of source ids whose text was cut to the context budget before the model read it. Empty on a clean run.
+- `findings[]` of type `claim_verdict` carry `source_truncated: true` plus `source_chars` and `source_chars_used` when the verdict rests on a partial reading; the keys are absent otherwise.
+
 ## 0.2.1 (2026-09-06)
 
 ### Changed

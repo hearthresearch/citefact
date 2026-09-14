@@ -210,3 +210,59 @@ class TestExtractionCache:
         check_claims(TEXT, _matched(), _sources(), model="m", cache_dir=tmp_path)
         check_claims(TEXT, _matched(), _sources(), model="m", cache_dir=tmp_path)
         assert len(calls) == 2                # both runs attempted extraction
+
+
+class TestSourceTruncation:
+    """A source longer than the context budget is cut before it reaches the
+    model. Silent truncation turns "the model saw no evidence" into
+    `not_in_paper`, so every truncated verdict is flagged in the finding and
+    in the summary."""
+
+    def _long_source(self, chars: int):
+        src = _sources()
+        src["smith2023"].text = "Participants preferred assistance in 78% of trials. " + "x" * chars
+        return src
+
+    def test_untruncated_source_carries_no_flag(self, tmp_path, monkeypatch):
+        _mock_llm(monkeypatch, EXTRACTION, VERDICT)
+        findings, summary = check_claims(
+            TEXT, _matched(), _sources(), model="m", cache_dir=tmp_path,
+        )
+        assert "source_truncated" not in findings[0].details
+        assert summary["sources_truncated"] == []
+
+    def test_truncated_source_is_flagged_in_finding_and_summary(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("CITEFACT_MAX_SOURCE_CHARS", "100")
+        _mock_llm(monkeypatch, EXTRACTION, VERDICT)
+        findings, summary = check_claims(
+            TEXT, _matched(), self._long_source(500), model="m", cache_dir=tmp_path,
+        )
+        details = findings[0].details
+        assert details["source_truncated"] is True
+        assert details["source_chars"] == 552 and details["source_chars_used"] == 100
+        assert summary["sources_truncated"] == ["smith2023"]
+
+    def test_model_receives_only_the_budget(self, tmp_path, monkeypatch):
+        monkeypatch.setenv("CITEFACT_MAX_SOURCE_CHARS", "100")
+        calls = _mock_llm(monkeypatch, EXTRACTION, VERDICT)
+        check_claims(TEXT, _matched(), self._long_source(500), model="m", cache_dir=tmp_path)
+        sent = json.dumps(calls[-1], default=str)
+        assert "[... truncated for length ...]" in sent
+        assert "x" * 200 not in sent
+
+    def test_budget_change_invalidates_the_verdict_cache(self, tmp_path, monkeypatch):
+        """A verdict formed on 100 chars must not be reused when the budget
+        grows: the model now has evidence it did not have before."""
+        monkeypatch.setenv("CITEFACT_MAX_SOURCE_CHARS", "100")
+        calls = _mock_llm(monkeypatch, EXTRACTION, VERDICT)
+        check_claims(TEXT, _matched(), self._long_source(500), model="m", cache_dir=tmp_path)
+        n_first = len(calls)
+        monkeypatch.setenv("CITEFACT_MAX_SOURCE_CHARS", "1000")
+        check_claims(TEXT, _matched(), self._long_source(500), model="m", cache_dir=tmp_path)
+        assert len(calls) > n_first
+
+    def test_default_budget_covers_a_full_length_paper(self):
+        """A journal article converted to markdown runs 40k-150k characters;
+        the pre-0.3 budget of 40k cut most of them in half."""
+        from citefact.checks.claims import max_source_chars
+        assert max_source_chars() >= 150_000

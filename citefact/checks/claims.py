@@ -6,6 +6,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import os
 import re
 from pathlib import Path
 from typing import Any, Callable, Optional
@@ -19,9 +20,15 @@ from citefact.models import Finding, Source
 
 log = logging.getLogger(__name__)
 
-PROMPT_VERSION = 1  # bump on any prompt change: invalidates the verdict cache
+PROMPT_VERSION = 2  # bump on any prompt or context-shape change: invalidates the verdict cache
 MAX_MANUSCRIPT_CHARS = 50_000
-MAX_SOURCE_CHARS = 40_000
+
+# Context budget for one source, in characters. A journal article converted
+# to markdown runs 40k-150k characters, so the pre-0.3 budget of 40k cut most
+# real papers roughly in half and the model formed `not_in_paper` verdicts on
+# evidence it was never shown. 300k (~75k tokens) covers a long article or a
+# thesis chapter whole; books still truncate, and say so in the report.
+MAX_SOURCE_CHARS = 300_000
 VALID_VERDICTS = ("supported", "partial", "misrepresented", "not_in_paper")
 _SEVERITY = {"supported": "info", "partial": "warning",
              "misrepresented": "error", "not_in_paper": "error",
@@ -166,8 +173,11 @@ def suggest_verdict(
     *,
     model: str,
 ) -> dict[str, Any]:
-    if len(source_text) > MAX_SOURCE_CHARS:
-        source_text = source_text[:MAX_SOURCE_CHARS] + "\n\n[... truncated for length ...]"
+    budget = max_source_chars()
+    source_chars = len(source_text)
+    truncated = source_chars > budget
+    if truncated:
+        source_text = source_text[:budget] + "\n\n[... truncated for length ...]"
     numbers_context = f"\nKEY NUMBERS TO VERIFY: {', '.join(key_numbers)}" if key_numbers else ""
     paper_block: Any = f"SOURCE PAPER CONTENT:\n{source_text}"
     instructions = render_user_prompt(
@@ -205,14 +215,35 @@ def suggest_verdict(
     reasoning = data.get("reasoning", [])
     if isinstance(reasoning, list):
         reasoning = " ".join(str(r) for r in reasoning)
-    return {"verdict": verdict, "confidence": confidence,
+    return {"source_truncated": truncated, "source_chars": source_chars,
+            "source_chars_used": budget if truncated else source_chars,
+            "verdict": verdict, "confidence": confidence,
             "evidence": data.get("evidence", ""),
             "source_location": data.get("source_location", ""),
             "reasoning": reasoning, "cost_usd": result.cost_usd + sum(repair_cost)}
 
 
-def _verdict_cache_key(claim_text: str, content_hash: str | None, model: str) -> str:
-    raw = f"{claim_text}\n{content_hash}\n{model}\n{PROMPT_VERSION}"
+def max_source_chars() -> int:
+    """Per-source context budget, overridable with CITEFACT_MAX_SOURCE_CHARS.
+    Read per call so the value can be changed between runs in one process."""
+    raw = os.environ.get("CITEFACT_MAX_SOURCE_CHARS")
+    if raw is None:
+        return MAX_SOURCE_CHARS
+    try:
+        value = int(raw)
+    except ValueError:
+        log.warning("Ignoring non-integer CITEFACT_MAX_SOURCE_CHARS=%r", raw)
+        return MAX_SOURCE_CHARS
+    return value if value > 0 else MAX_SOURCE_CHARS
+
+
+def _verdict_cache_key(
+    claim_text: str, content_hash: str | None, model: str, budget: int | None,
+) -> str:
+    """`budget` is the truncation limit when it actually bit, else None: a
+    verdict formed on a cut source must not survive a budget increase, while
+    raising the budget leaves verdicts on whole sources cached."""
+    raw = f"{claim_text}\n{content_hash}\n{model}\n{PROMPT_VERSION}\n{budget}"
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
@@ -297,17 +328,30 @@ def check_claims(
 
     findings: list[Finding] = []
     verdict_counts: dict[str, int] = {}
+    truncated_sources: set[str] = set()
+    budget = max_source_chars()
     total = sum(len(v) for v in by_source.values())
     done = 0
     for pid, claims in by_source.items():
         source = sources[pid]
+        source_truncated = len(source.text or "") > budget
+        if source_truncated:
+            truncated_sources.add(pid)
+            log.warning(
+                "Source %s is %d chars, over the %d-char budget: verdicts for it "
+                "are formed on a partial text and are flagged in the report.",
+                pid, len(source.text or ""), budget,
+            )
         for claim in claims:
             done += 1
             say(ProgressEvent(
                 phase="verify", message=pid,
                 current=done, total=total, cost_usd=round(cost, 2),
             ))
-            key = _verdict_cache_key(claim["claim"], source.content_hash, model)
+            key = _verdict_cache_key(
+                claim["claim"], source.content_hash, model,
+                budget if source_truncated else None,
+            )
             cache_file = verdict_dir / f"{key}.json"
             data = None
             if cache_file.exists():
@@ -328,6 +372,8 @@ def check_claims(
                     partial = True
                     data = {"verdict": None, "confidence": 0, "evidence": "",
                             "source_location": "", "reasoning": "", "error": str(exc)}
+            # Cache entries written before 0.3 carry no truncation keys; the
+            # budget recorded here is the one this run actually applied.
             verdict = data["verdict"] if data.get("verdict") is not None else "unverified"
             verdict_counts[verdict] = verdict_counts.get(verdict, 0) + 1
             details = {
@@ -336,6 +382,13 @@ def check_claims(
                 "reasoning": data.get("reasoning", ""),
                 "confidence": data.get("confidence", 0),
             }
+            if source_truncated:
+                # The model judged a cut text: a `not_in_paper` here may mean
+                # "not in the part it saw". Flagged per claim, not just per run,
+                # because the HTML report groups and filters by claim.
+                details["source_truncated"] = True
+                details["source_chars"] = len(source.text or "")
+                details["source_chars_used"] = budget
             if data.get("error") is not None:
                 details["error"] = data["error"]
             findings.append(Finding(
@@ -346,6 +399,7 @@ def check_claims(
     summary = {
         "claims_total": total,
         "verdicts": verdict_counts,
+        "sources_truncated": sorted(truncated_sources),
         "cost_usd": round(cost, 4),
         "partial": partial,
     }

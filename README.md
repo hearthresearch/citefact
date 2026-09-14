@@ -89,7 +89,7 @@ citefact check manuscript.md --bib refs.bib --pdfs papers/ --skip-claims --json 
 jq '.findings[] | select(.severity == "error") | {type, location, citation, quote}' report.json
 ```
 
-Exit codes are the contract: `0` clean, `1` findings at or above `--fail-on`, `2` usage or execution error with the reason on stderr. Progress never touches stdout, so `--json` output is safe to pipe. Finding types are stable per level (`orphan_citation`, `missing_source`, `quote_modified`, `claim_verdict`, ...) and `report.json` carries `schema_version`; changes are listed in [CHANGELOG.md](CHANGELOG.md). Converted source text is shared with [pagebound](https://pypi.org/project/pagebound/), so an agent that wants to read a source itself can use `pagebound path` on the same cache.
+Exit codes are the contract: `0` clean, `1` findings at or above `--fail-on`, `2` usage or execution error with the reason on stderr. Progress never touches stdout, so `--json` output is safe to pipe. Finding types are stable per level (`orphan_citation`, `missing_source`, `quote_modified`, `claim_verdict`, ...) and `report.json` carries `schema_version`; a `claim_verdict` with `source_truncated: true` was judged on a partial source and should be read as provisional; changes are listed in [CHANGELOG.md](CHANGELOG.md). Converted source text is shared with [pagebound](https://pypi.org/project/pagebound/), so an agent that wants to read a source itself can use `pagebound path` on the same cache.
 
 ## 📖 Usage
 
@@ -136,7 +136,7 @@ Report: citefact-report/report.html
 | `--quiet` | off | Silence progress and summary |
 | `--force` | off | Ignore the conversion cache |
 
-Environment: `CITEFACT_CACHE` relocates the `.citefact/` cache (written next to the manuscript by default); `CITEFACT_MODEL` pins a model. `citefact convert` resolves its cache relative to the current directory, so run it from the manuscript's folder or set `CITEFACT_CACHE`.
+Environment: `CITEFACT_CACHE` relocates the `.citefact/` cache (written next to the manuscript by default); `CITEFACT_MODEL` pins a model; `CITEFACT_MAX_SOURCE_CHARS` sets how much of one source the claims check sends to the model (default `300000`, about a long journal article). Anything cut is named in `summary.sources_truncated` and flagged on every verdict it affected, because a `not_in_paper` on a cut source may only mean "not in the part the model saw". `citefact convert` resolves its cache relative to the current directory, so run it from the manuscript's folder or set `CITEFACT_CACHE`.
 
 Converted PDFs live in `.citefact/pagebound/`, the project's own [pagebound](https://pypi.org/project/pagebound/) store. If you also have a shared pagebound cache (`~/.cache/pagebound`, or `PAGEBOUND_CACHE`), citefact reads it first and copies hits into the project store; it never writes to the shared cache.
 

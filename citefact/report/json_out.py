@@ -14,7 +14,7 @@ from typing import Any
 import citefact
 from citefact.models import Finding, Manuscript, Source
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 
 def build_report(
@@ -53,6 +53,9 @@ def build_report(
             "warnings": sum(1 for f in findings if f.severity == "warning"),
             "claims_total": claims_summary.get("claims_total", 0),
             "verdicts": claims_summary.get("verdicts", {}),
+            # Source ids whose text was cut to the context budget before the
+            # model saw it; their verdicts rest on a partial reading.
+            "sources_truncated": claims_summary.get("sources_truncated", []),
         },
         "citations": citations or [],
         "sources": [

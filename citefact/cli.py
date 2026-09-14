@@ -57,8 +57,11 @@ def main(
     for, so it is safe to pipe.
 
     Environment: CITEFACT_CACHE relocates the .citefact/ cache (default:
-    next to the manuscript); CITEFACT_MODEL pins the LLM; PAGEBOUND_CACHE
-    points at a shared cache of converted PDFs, read but never written.
+    next to the manuscript); CITEFACT_MODEL pins the LLM;
+    CITEFACT_MAX_SOURCE_CHARS sets how much of one source reaches the model
+    in the claims check (default 300000, about a long article; anything cut
+    is reported); PAGEBOUND_CACHE points at a shared cache of converted
+    PDFs, read but never written.
     """
 
 
@@ -166,8 +169,9 @@ def check(
     PDFs are converted once and cached (.citefact/ next to the manuscript);
     an unchanged re-run is seconds and costs nothing.
 
-    report.json (schema_version 2): `summary` {errors, warnings,
-    claims_total, verdicts}; `sources[]` {id, title, converted, conversion:
+    report.json (schema_version 3): `summary` {errors, warnings,
+    claims_total, verdicts, sources_truncated: source ids whose text was cut
+    to CITEFACT_MAX_SOURCE_CHARS before the model read it}; `sources[]` {id, title, converted, conversion:
     {converter_version, text_layer}}, where text_layer false means OCR text;
     `findings[]` each with `level`, `type`, `severity` and a `location`
     line. Types by level: citations: orphan_citation (error: cited, not in
@@ -178,7 +182,10 @@ def check(
     (info); claims: claim_verdict with `verdict` supported (info), partial
     (warning), misrepresented / not_in_paper (error), unverified (warning:
     LLM failure, run marked partial), each with the verbatim `claim`, the
-    source `evidence`, `reasoning` and `confidence` 0-100.
+    source `evidence`, `reasoning` and `confidence` 0-100, plus
+    `source_truncated` true with `source_chars` and `source_chars_used` when
+    the verdict was formed on a cut source (a not_in_paper there may mean
+    "not in the part the model saw").
     """
     from contextlib import nullcontext
 

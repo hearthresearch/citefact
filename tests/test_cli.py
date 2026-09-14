@@ -46,7 +46,8 @@ class TestHelpForAgents:
     def test_root_help_states_exit_codes_and_env(self):
         result = runner.invoke(app, ["--help"])
         assert result.exit_code == 0
-        for needle in ("0 clean", "2 usage", "CITEFACT_CACHE", "report.json"):
+        for needle in ("0 clean", "2 usage", "CITEFACT_CACHE",
+                       "CITEFACT_MAX_SOURCE_CHARS", "report.json"):
             assert needle in result.output
 
     def test_help_command_matches_help_flag(self):
@@ -57,6 +58,7 @@ class TestHelpForAgents:
         assert result.exit_code == 0
         assert "schema_version" in result.output
         assert "orphan_citation" in result.output
+        assert "source_truncated" in result.output
 
     def test_dash_h_alias(self):
         result = runner.invoke(app, ["convert", "-h"])
@@ -120,7 +122,7 @@ def test_check_json_streams_report_to_stdout(tmp_path: Path):
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
-    assert payload["schema_version"] == 2
+    assert payload["schema_version"] == 3
     # --quiet silences progress; stdout carries only the JSON report.
 
 

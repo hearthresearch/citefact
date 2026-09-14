@@ -204,6 +204,16 @@ footer{margin-top:2.5rem;font-size:.72rem;color:var(--gray-400);text-align:cente
   </div>
 </div>
 
+{% if report.summary.sources_truncated %}
+<div class="banner"><strong>Truncated sources.</strong> {{ report.summary.sources_truncated | length }}
+source{{ "s" if report.summary.sources_truncated | length != 1 }} exceeded the per-source context
+budget and reached the model cut short
+({% for sid in report.summary.sources_truncated %}<code>{{ sid }}</code>{{ ", " if not loop.last }}{% endfor %}).
+Verdicts on {{ "them" if report.summary.sources_truncated | length != 1 else "it" }} rest on a partial
+reading: a &ldquo;not in paper&rdquo; may mean &ldquo;not in the part the model saw&rdquo;. Raise
+<code>CITEFACT_MAX_SOURCE_CHARS</code> and re-run to clear this.</div>
+{% endif %}
+
 {% if report.run.partial %}
 <div class="banner"><strong>Partial audit.</strong> Some claims could not be
 verified (LLM failures or truncation); unverified items are marked below.</div>
@@ -345,6 +355,8 @@ verified (LLM failures or truncation); unverified items are marked below.</div>
     <div class="rowbody">
       {% set vm = verdict_meta.get(f.verdict, {"icon": "alert-circle", "label": f.verdict}) %}
       <span class="badge v-{{ f.verdict }}">{{ icon(vm.icon, 12) }} {{ vm.label }}</span>
+      {% if f.source_truncated %}<span class="badge b-warning">{{ icon("alert-circle", 12) }}
+        partial source ({{ "{:,}".format(f.source_chars_used) }} of {{ "{:,}".format(f.source_chars) }} chars)</span>{% endif %}
       <p class="ftext">{{ f.claim }}</p>
       <div class="aicard">
         <div class="ailabel">{{ icon("sparkles", 12) }} AI Suggestion
