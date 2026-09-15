@@ -4,9 +4,14 @@ All notable changes to citefact. `report.json` carries `schema_version`; any cha
 
 ## Unreleased
 
+### Added
+
+- The quotes check now sees Markdown `>` block quotes, which is how APA sets quotations of 40+ words: indented, without quotation marks, and therefore invisible to the old scan for text between marks. The longest quotations in a manuscript were never checked. A block is compared whole with its source; the closing `(Author, year, p. n)` inside the block is treated as the attribution and left out of the comparison. Text inside code fences, indented code and tables is no longer scanned for quotes. The manuscript is parsed with `markdown-it-py` (new direct dependency, already installed transitively through `rich`).
+
 ### Fixed
 
 - The claims check no longer judges most papers on half their text. One source reached the model cut to 40,000 characters, roughly half a typical journal article converted to markdown, and the cut was silent: a claim supported in a discussion section came back `not_in_paper` with high confidence, which reads as a caught fabrication and was an artefact of the budget. The budget is now 300,000 characters (about a long article or a thesis chapter, whole), overridable with `CITEFACT_MAX_SOURCE_CHARS`.
+- Parenthetical citations were located one character too early: the span reported for `(Smith, 2023)` started at the opening parenthesis and stopped one character short of the year. Line numbers were unaffected in practice; the span now covers exactly the author-year item.
 - Truncation, when it still happens, is always reported: the affected source ids in `summary.sources_truncated`, a `source_truncated` flag with the character counts on every verdict formed on a cut source, a banner and a per-claim badge in the HTML report, and a log warning during the run.
 
 ### Changed
@@ -15,6 +20,7 @@ All notable changes to citefact. `report.json` carries `schema_version`; any cha
 
 ### report.json schema 3
 
+- `findings[]` of level `quotes` carry `form`: `inline` (text between quotation marks) or `block` (a `>` block quote).
 - `summary.sources_truncated`: list of source ids whose text was cut to the context budget before the model read it. Empty on a clean run.
 - `findings[]` of type `claim_verdict` carry `source_truncated: true` plus `source_chars` and `source_chars_used` when the verdict rests on a partial reading; the keys are absent otherwise.
 

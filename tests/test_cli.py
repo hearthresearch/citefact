@@ -59,6 +59,7 @@ class TestHelpForAgents:
         assert "schema_version" in result.output
         assert "orphan_citation" in result.output
         assert "source_truncated" in result.output
+        assert "block quote" in result.output
 
     def test_dash_h_alias(self):
         result = runner.invoke(app, ["convert", "-h"])
@@ -235,6 +236,9 @@ def test_e2e_skip_claims(tmp_path: Path, monkeypatch):
     assert {"orphan_citation", "uncited_reference", "missing_source",
             "quote_verified", "quote_modified", "quote_not_found",
             "quote_unattributed"} <= types
+    forms = {(f["type"], f["form"]) for f in report["findings"] if f["level"] == "quotes"}
+    assert ("quote_verified", "block") in forms  # the APA 40+ word block quote
+    assert ("quote_verified", "inline") in forms
     assert report["run"]["model"] is None
     assert (out / "report.html").exists()
 

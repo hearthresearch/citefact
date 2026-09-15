@@ -176,10 +176,11 @@ def check(
     `findings[]` each with `level`, `type`, `severity` and a `location`
     line. Types by level: citations: orphan_citation (error: cited, not in
     the bibliography), uncited_reference (warning; info with Zotero),
-    missing_source (warning: no PDF or unconvertible); quotes:
-    quote_modified (error, with closest_match and similarity 0-100),
-    quote_not_found (error), quote_unattributed (warning), quote_verified
-    (info); claims: claim_verdict with `verdict` supported (info), partial
+    missing_source (warning: no PDF or unconvertible); quotes (each with
+    `form` inline for text between quotation marks or block for a Markdown
+    `>` block quote, APA's form for 40+ words): quote_modified (error, with
+    closest_match and similarity 0-100), quote_not_found (error),
+    quote_unattributed (warning), quote_verified (info); claims: claim_verdict with `verdict` supported (info), partial
     (warning), misrepresented / not_in_paper (error), unverified (warning:
     LLM failure, run marked partial), each with the verbatim `claim`, the
     source `evidence`, `reasoning` and `confidence` 0-100, plus

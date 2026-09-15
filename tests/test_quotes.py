@@ -1,4 +1,5 @@
 from citefact.checks.quotes import check_quotes, extract_quotes, normalize
+from citefact.citations.apa import ApaParser
 from citefact.citations.base import Citation, MatchedCitation
 from citefact.models import Source
 
@@ -137,3 +138,83 @@ class TestLigatureFragments:
                      text.index("(Leb") + 16), "s1", 0.95)
         findings = check_quotes(text, [cite], source)
         assert [f.type for f in findings] == ["quote_verified"]
+
+
+def _parsed_cites(text, paper_id="smith2023"):
+    """Citations as the real APA parser emits them (span covers the
+    author-year item only, not the parentheses or a page locator)."""
+    return [MatchedCitation(c, paper_id, 0.95) for c in ApaParser().extract(text)]
+
+
+class TestBlockQuotes:
+    """APA sets quotations of 40+ words as indented blocks without
+    quotation marks. In Markdown those are `>` block quotes."""
+
+    def test_block_quote_is_extracted_with_block_form(self):
+        text = "Smith argued:\n\n> The participants overwhelmingly preferred the assisted\n> workflow in every measured dimension.\n\nNext.\n"
+        spans = extract_quotes(text)
+        assert len(spans) == 1
+        assert spans[0].form == "block"
+        assert spans[0].text == "The participants overwhelmingly preferred the assisted workflow in every measured dimension."
+        assert text[spans[0].start:].startswith("> The participants")
+
+    def test_inline_quotes_default_to_inline_form(self):
+        spans = extract_quotes('A "first long enough quotation here" done.')
+        assert spans[0].form == "inline"
+
+    def test_quotation_marks_inside_block_quote_are_not_extracted_twice(self):
+        text = '> He said "this inner quotation is long enough" and left.\n'
+        spans = extract_quotes(text)
+        assert [s.form for s in spans] == ["block"]
+
+    def test_quotation_marks_inside_fence_and_table_are_skipped(self):
+        text = (
+            '```\nx = "a string literal that is long enough"\n```\n\n'
+            '| h |\n|---|\n| "a table cell that is long enough" |\n'
+        )
+        assert extract_quotes(text) == []
+
+    def test_verbatim_block_quote_with_trailing_citation_verifies(self):
+        # APA puts the citation after the block's final punctuation, inside
+        # the block; it must be cut from the text compared with the source.
+        text = (
+            "Smith found:\n\n> Participants overwhelmingly preferred the assisted "
+            "workflow in every\n> measured dimension. (Smith, 2023, p. 4)\n\nNext.\n"
+        )
+        matched = _parsed_cites(text)
+        findings = check_quotes(text, matched, _sources())
+        assert [f.type for f in findings] == ["quote_verified"]
+        assert findings[0].details["form"] == "block"
+        assert findings[0].details["quote"] == (
+            "Participants overwhelmingly preferred the assisted workflow in every measured dimension."
+        )
+        assert findings[0].details["location"] == {"line": 3}
+
+    def test_inline_findings_carry_inline_form(self):
+        text = 'They "preferred the assisted workflow in every measured dimension" (Smith, 2023).'
+        findings = check_quotes(text, [_cite(text.index("(Smith"))], _sources())
+        assert findings[0].details["form"] == "inline"
+
+    def test_altered_block_quote_is_flagged(self):
+        text = (
+            "> Participants overwhelmingly preferred the assisted workflow in every\n"
+            "> single measured dimension. (Smith, 2023)\n"
+        )
+        matched = _parsed_cites(text)
+        findings = check_quotes(text, matched, _sources())
+        assert findings[0].type == "quote_modified"
+
+    def test_citation_inside_block_but_not_at_its_end_is_kept_in_text(self):
+        # A citation the quoted author wrote is part of the quotation; only a
+        # trailing attribution is cut.
+        text = "> As Smith (2023) wrote, the assisted workflow won in every dimension.\n"
+        findings = check_quotes(text, _parsed_cites(text), _sources())
+        assert "Smith (2023)" in findings[0].details["quote"]
+
+    def test_attribution_with_two_works_is_cut_whole(self):
+        text = "> Participants overwhelmingly preferred the assisted workflow in every measured dimension. (Doe, 2021; Smith, 2023)\n"
+        cites = ApaParser().extract(text)
+        matched = [MatchedCitation(cites[0], "doe2021", 0.9), MatchedCitation(cites[1], "smith2023", 0.95)]
+        sources = {**_sources(), "doe2021": Source(id="doe2021", title="U", authors="Doe", year=2021, text="unrelated")}
+        findings = check_quotes(text, matched, sources)
+        assert findings[0].details["quote"].endswith("measured dimension.")

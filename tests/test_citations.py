@@ -288,3 +288,15 @@ class TestMultiAuthorNarrative:
         cites = parser.extract(parser.preprocess(text))
         assert len(cites) == 1
         assert cites[0].author_string == "Smith"
+
+
+class TestCitationOffsets:
+    def test_parenthetical_span_covers_exactly_the_raw_item(self):
+        text = "Measured dimension. (Smith, 2023, p. 4) Next."
+        (c,) = ApaParser().extract(text)
+        assert text[c.start:c.end] == c.raw == "Smith, 2023"
+
+    def test_second_item_of_a_group_has_its_own_exact_span(self):
+        text = "Prose (Smith, 2023; Doe, 2021)."
+        spans = [text[c.start:c.end] for c in ApaParser().extract(text)]
+        assert spans == ["Smith, 2023", "Doe, 2021"]

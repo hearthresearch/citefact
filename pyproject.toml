@@ -37,6 +37,7 @@ dependencies = [
     "pyzotero>=1.13.7",
     "rich>=13",
     "pagebound>=0.1.0",
+    "markdown-it-py>=3",
 ]
 
 [project.urls]

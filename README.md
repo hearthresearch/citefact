@@ -37,7 +37,7 @@ That's the whole setup: `uvx` fetches citefact, the report lands in `./citefact-
 | Check | Question it answers | Method | Cost |
 |---|---|---|---|
 | **1 · Citations** | Does every in-text citation exist in the bibliography, with a source document? | Deterministic | Free |
-| **2 · Quotes** | Is every direct quote really verbatim in its cited source? | Deterministic (normalized + fuzzy) | Free |
+| **2 · Quotes** | Is every direct quote, inline or block, really verbatim in its cited source? | Deterministic (normalized + fuzzy) | Free |
 | **3 · Claims** | Does the source actually support the claim attached to it? | LLM, with verbatim evidence per verdict | ~cents per source |
 
 | | Citation-existence checkers | citefact |
@@ -154,6 +154,8 @@ Converted PDFs live in `.citefact/pagebound/`, the project's own [pagebound](htt
 | `quote_modified` | quotes | error | Near match only; the report shows a word-level diff |
 | `quote_not_found` | quotes | error | Quote does not appear in the cited source |
 | `quote_unattributed` | quotes | warning | Long quote with no resolvable citation nearby |
+
+Quote findings carry `form`: `inline` for text between quotation marks, `block` for a Markdown `>` block quote (APA sets quotations of 40+ words that way, without marks). A block's trailing `(Author, year, p. n)` is not part of what is compared with the source. Text inside code fences and tables is never scanned for quotes.
 | `claim_verdict` | claims | by verdict | `supported` info · `partial` warning · `misrepresented`/`not_in_paper` error · `unverified` warning |
 
 ¹ Demoted to info with `--zotero-collection`: a collection is a reading library, so uncited entries are normal there.

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from rapidfuzz import fuzz
 
 from citefact.citations.base import MatchedCitation
+from citefact.ingest.structure import block_quotes, excluded_spans
 from citefact.models import Finding, Source, line_of
 
 MIN_QUOTE_CHARS = 20     # below this, treat as scare quotes and skip
@@ -15,6 +16,7 @@ ADJACENCY_WINDOW = 300   # max chars between quote and its citation
 QUOTE_SIMILARITY_THRESHOLD = 80  # partial-ratio floor for quote_modified
 
 _QUOTE_RE = re.compile(r'[“"](?P<q>[^“”"]+)[”"]')
+_BLOCK_MARKERS = re.compile(r"^( {0,3}> ?)+", re.MULTILINE)
 
 _LIGATURES = str.maketrans({
     "ﬀ": "ff", "ﬁ": "fi", "ﬂ": "fl", "ﬃ": "ffi", "ﬄ": "ffl",
@@ -27,9 +29,15 @@ _UNIFY = str.maketrans({
 
 @dataclass
 class QuoteSpan:
+    """A quotation to verify. `form` is "inline" for text between quotation
+    marks and "block" for a Markdown `>` block quote (APA's form for
+    quotations of 40+ words, which carry no marks). [start, end) are
+    offsets into the manuscript text."""
+
     text: str
     start: int
     end: int
+    form: str = "inline"
 
 
 def normalize(text: str) -> str:
@@ -47,12 +55,25 @@ def normalize(text: str) -> str:
     return text.strip().casefold()
 
 
+def _inside(start: int, end: int, spans: list[tuple[int, int]]) -> bool:
+    return any(s <= start and end <= e for s, e in spans)
+
+
 def extract_quotes(text: str) -> list[QuoteSpan]:
-    return [
+    """Inline quotations and block quotes, in document order. Quotation
+    marks inside code, tables or a block quote are not extracted on their
+    own: the first two are not prose, and the block is checked whole."""
+    blocks = [QuoteSpan(b.text, b.start, b.end, "block") for b in block_quotes(text)]
+    skip = excluded_spans(text) + [(b.start, b.end) for b in blocks]
+    inline = [
         QuoteSpan(m.group("q"), m.start("q"), m.end("q"))
         for m in _QUOTE_RE.finditer(text)
-        if len(m.group("q")) >= MIN_QUOTE_CHARS
+        if not _inside(m.start(), m.end(), skip)
     ]
+    return sorted(
+        (q for q in inline + blocks if len(q.text) >= MIN_QUOTE_CHARS),
+        key=lambda q: q.start,
+    )
 
 
 def _nearest_citation(quote: QuoteSpan, matched: list[MatchedCitation]) -> MatchedCitation | None:
@@ -62,6 +83,26 @@ def _nearest_citation(quote: QuoteSpan, matched: list[MatchedCitation]) -> Match
         if gap <= ADJACENCY_WINDOW and (best is None or gap < best[0]):
             best = (gap, m)
     return best[1] if best else None
+
+
+def _strip_trailing_attribution(quote: QuoteSpan, text: str, cite: MatchedCitation) -> str:
+    """APA closes a block quote with a parenthetical citation after the final
+    punctuation, inside the block. That citation is not part of what the
+    source said, so it is cut from the text compared with the source. A
+    citation the quoted author wrote (narrative, or mid-block) stays: only
+    a parenthetical group followed by nothing but whitespace or punctuation
+    up to the block end counts as the attribution."""
+    if quote.form != "block" or not (quote.start <= cite.citation.start < quote.end):
+        return quote.text
+    before = text[quote.start:cite.citation.start]
+    paren = before.rfind("(")
+    if paren == -1 or ")" in before[paren:]:
+        return quote.text
+    close = text.find(")", cite.citation.end, quote.end)
+    if close == -1 or not re.fullmatch(r"[\s.,;:!?]*", text[close + 1:quote.end]):
+        return quote.text
+    head = _BLOCK_MARKERS.sub("", before[:paren])
+    return " ".join(head.split())
 
 
 def check_quotes(
@@ -76,7 +117,7 @@ def check_quotes(
         if cite is None:
             findings.append(Finding(
                 level="quotes", type="quote_unattributed", severity="warning",
-                details={"quote": quote.text, "location": location},
+                details={"quote": quote.text, "form": quote.form, "location": location},
             ))
             continue
         if cite.paper_id is None:
@@ -85,9 +126,11 @@ def check_quotes(
         if source is None or source.text is None:
             continue  # missing_source; the citations check already reported it
 
-        norm_quote = normalize(quote.text)
+        quoted = _strip_trailing_attribution(quote, text, cite)
+        norm_quote = normalize(quoted)
         norm_source = normalize(source.text)
-        base = {"source_id": cite.paper_id, "quote": quote.text, "location": location}
+        base = {"source_id": cite.paper_id, "quote": quoted, "form": quote.form,
+                "location": location}
         if norm_quote in norm_source:
             findings.append(Finding(
                 level="quotes", type="quote_verified", severity="info", details=base,

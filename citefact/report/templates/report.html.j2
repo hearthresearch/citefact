@@ -314,6 +314,7 @@ verified (LLM failures or truncation); unverified items are marked below.</div>
       <div class="meta">
         {% if f.source_id is defined %}{% if pdf_links.get(f.source_id) %}<a class="loc" href="{{ pdf_links[f.source_id] }}"><code>{{ f.source_id }}</code></a>{% else %}<code>{{ f.source_id }}</code>{% endif %}{% endif %}
         {% if f.location is defined %}{{ icon("map-pin", 11) }} line {{ f.location.line }}{% endif %}
+        {% if f.form == "block" %}&middot; block quote{% endif %}
       </div>
       <blockquote>&ldquo;{{ f.quote }}&rdquo;</blockquote>
       {% if f.diff_html is defined %}

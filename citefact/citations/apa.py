@@ -135,7 +135,7 @@ class ApaParser:
         # author-year items.
         for match in _PARENTHETICAL.finditer(text):
             body = match.group("body")
-            group_start = match.start()
+            group_start = match.start("body")
             # Look for author-year items inside this group. A group may
             # legitimately contain no citations (e.g. "(see Methods)") — skip.
             items = list(_AUTHOR_YEAR_ITEM.finditer(body))

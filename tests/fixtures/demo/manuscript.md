@@ -2,6 +2,12 @@
 
 Smith and Jones report that participants "preferred the assisted workflow in every measured dimension" (Smith, 2023). Doe (2021) proposes a validated preference scale. Earlier foundations were laid by Kim (2019).
 
+Smith and Jones sum up their evaluation in a block quotation, which APA sets without quotation marks:
+
+> The evaluation revealed that participants overwhelmingly preferred the
+> assisted workflow in every measured dimension. Accuracy, however, was
+> unchanged between conditions. (Smith, 2023, p. 1)
+
 A fabricated work claims the opposite (Ghost et al., 2024).
 
 One altered quote: participants "strongly preferred the assisted workflow in every dimension measured" (Smith, 2023). One fabricated quote: the scale "was rejected as fundamentally unreliable" (Doe, 2021).
