@@ -312,9 +312,10 @@ verified (LLM failures or truncation); unverified items are marked below.</div>
     <div class="rowbody">
       <span class="badge b-{{ f.severity }}">{{ f.type.replace("_", " ") }}</span>
       <div class="meta">
-        {% if f.source_id is defined %}{% if pdf_links.get(f.source_id) %}<a class="loc" href="{{ pdf_links[f.source_id] }}"><code>{{ f.source_id }}</code></a>{% else %}<code>{{ f.source_id }}</code>{% endif %}{% endif %}
+        {% if f.source_id is defined %}{% if pdf_links.get(f.source_id) %}<a class="loc" href="{{ pdf_links[f.source_id] }}{% if f.pdf_page is defined %}#page={{ f.pdf_page }}{% endif %}"><code>{{ f.source_id }}</code></a>{% else %}<code>{{ f.source_id }}</code>{% endif %}{% endif %}
         {% if f.location is defined %}{{ icon("map-pin", 11) }} line {{ f.location.line }}{% endif %}
         {% if f.form == "block" %}&middot; block quote{% endif %}
+        {% if f.type == "quote_page_mismatch" %}&middot; cited p. {{ f.page_claimed | join(", ") }}, found p. {{ f.page_found }}{% elif f.page_found is defined and f.page_found is not none %}&middot; p. {{ f.page_found }}{% elif f.pdf_page is defined %}&middot; PDF page {{ f.pdf_page }}{% endif %}
       </div>
       <blockquote>&ldquo;{{ f.quote }}&rdquo;</blockquote>
       {% if f.diff_html is defined %}

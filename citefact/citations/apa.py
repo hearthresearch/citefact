@@ -58,6 +58,8 @@ _AUTHOR_YEAR_ITEM = re.compile(
     )
     \s*,\s*                                      # separator before year
     (?P<year>\d{4}[a-z]?|in\s+press|n\.?\s*d\.?) # year with variants
+    (?:\s*,\s*(?P<locator>(?:pp?|paras?|chap|ch|sec)\.?\s*[^;)]*?))?  # "p. 47", "para. 3"
+    (?=\s*(?:;|$))                                # item ends at ; or group end
     """,
     re.VERBOSE | re.IGNORECASE,
 )
@@ -84,6 +86,7 @@ _NARRATIVE = re.compile(
     \s*,?\s*                                     # optional trailing comma
     \(                                           # opening paren
     (?P<year>\d{4}[a-z]?)                        # year (narrative rarely uses "in press")
+    (?:\s*,\s*(?P<locator>(?:pp?|paras?|chap|ch|sec)\.?\s*[^)]*?))?  # "(2023, p. 12)"
     \)                                           # closing paren
     """,
     re.VERBOSE,
@@ -149,6 +152,7 @@ class ApaParser:
                         year=_parse_year(item.group("year")),
                         start=group_start + item.start(),
                         end=group_start + item.end(),
+                        locator=_clean_locator(item.group("locator")),
                     )
                 )
 
@@ -167,6 +171,7 @@ class ApaParser:
                     year=_parse_year(match.group("year")),
                     start=match.start(),
                     end=match.end(),
+                    locator=_clean_locator(match.group("locator")),
                 )
             )
 
@@ -178,6 +183,14 @@ class ApaParser:
     def resolve_references(self, text: str) -> dict[str, tuple[str, Any]]:
         """Author-date styles don't need a numbered bibliography map."""
         return {}
+
+
+def _clean_locator(raw: str | None) -> str | None:
+    """Collapse whitespace in a captured locator; None when absent or empty."""
+    if raw is None:
+        return None
+    cleaned = " ".join(raw.split())
+    return cleaned or None
 
 
 def _parse_year(raw: str) -> int | str:

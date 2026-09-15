@@ -36,6 +36,8 @@ from pagebound import PageboundError, Store
 from pagebound.recipe import Recipe
 from pagebound.store import default_root, sha256_of
 
+from citefact.ingest.pages import PageMap
+
 log = logging.getLogger(__name__)
 
 PROJECT_STORE_DIRNAME = "pagebound"
@@ -57,6 +59,7 @@ class Converted:
     converter_version: str
     converted_at: str
     text_layer: bool | None  # False: OCR-derived text; None: not recorded
+    page_map: PageMap | None = None  # PDF page per markdown offset
 
     def provenance(self) -> dict[str, Any]:
         return {
@@ -90,6 +93,9 @@ def _converted(artifact: pagebound.Artifact) -> Converted:
         converter_version=document.conversion.converter_version,
         converted_at=document.conversion.converted_at,
         text_layer=document.source.text_layer,
+        page_map=PageMap.from_blocks(
+            [b.to_dict() for b in document.blocks], page_count=document.source.pages,
+        ),
     )
 
 

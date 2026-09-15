@@ -10,6 +10,7 @@ import pytest
 
 from citefact.citations import pick_parser, resolve_to_catalog
 from citefact.citations.apa import ApaParser
+from citefact.citations.base import locator_pages
 from citefact.citations.base import Citation
 
 
@@ -294,9 +295,54 @@ class TestCitationOffsets:
     def test_parenthetical_span_covers_exactly_the_raw_item(self):
         text = "Measured dimension. (Smith, 2023, p. 4) Next."
         (c,) = ApaParser().extract(text)
-        assert text[c.start:c.end] == c.raw == "Smith, 2023"
+        assert text[c.start:c.end] == c.raw == "Smith, 2023, p. 4"
 
     def test_second_item_of_a_group_has_its_own_exact_span(self):
         text = "Prose (Smith, 2023; Doe, 2021)."
         spans = [text[c.start:c.end] for c in ApaParser().extract(text)]
         assert spans == ["Smith, 2023", "Doe, 2021"]
+
+
+class TestPageLocators:
+    def test_parenthetical_page_is_captured(self):
+        (c,) = ApaParser().extract("Prose (Smith, 2023, p. 47).")
+        assert c.locator == "p. 47"
+        assert c.raw == "Smith, 2023, p. 47"
+
+    def test_page_range_and_en_dash(self):
+        (c,) = ApaParser().extract("Prose (Smith, 2023, pp. 47–49).")
+        assert c.locator == "pp. 47–49"
+
+    def test_locator_only_binds_to_the_item_before_it(self):
+        a, b = ApaParser().extract("Prose (Doe, 2021; Smith, 2023, p. 4).")
+        assert a.locator is None
+        assert b.locator == "p. 4"
+
+    def test_narrative_page_is_captured(self):
+        (c,) = ApaParser().extract("Smith (2023, p. 12) argued.")
+        assert c.locator == "p. 12"
+        assert c.year == 2023
+
+    def test_non_page_locators_are_kept_raw(self):
+        (c,) = ApaParser().extract("Prose (Smith, 2023, para. 3).")
+        assert c.locator == "para. 3"
+
+    def test_no_locator_is_none(self):
+        (c,) = ApaParser().extract("Prose (Smith, 2023).")
+        assert c.locator is None
+
+
+class TestLocatorPages:
+    def test_single_page(self):
+        assert locator_pages("p. 47") == [47]
+
+    def test_range_expands(self):
+        assert locator_pages("pp. 47–49") == [47, 48, 49]
+        assert locator_pages("pp. 47-49") == [47, 48, 49]
+
+    def test_list_of_pages(self):
+        assert locator_pages("pp. 3, 7") == [3, 7]
+
+    def test_non_page_locator_is_none(self):
+        assert locator_pages("para. 3") is None
+        assert locator_pages(None) is None

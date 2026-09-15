@@ -154,8 +154,11 @@ Converted PDFs live in `.citefact/pagebound/`, the project's own [pagebound](htt
 | `quote_modified` | quotes | error | Near match only; the report shows a word-level diff |
 | `quote_not_found` | quotes | error | Quote does not appear in the cited source |
 | `quote_unattributed` | quotes | warning | Long quote with no resolvable citation nearby |
+| `quote_page_mismatch` | quotes | warning | Quote is verbatim in the source, but not on the page the citation names |
 
 Quote findings carry `form`: `inline` for text between quotation marks, `block` for a Markdown `>` block quote (APA sets quotations of 40+ words that way, without marks). A block's trailing `(Author, year, p. n)` is not part of what is compared with the source. Text inside code fences and tables is never scanned for quotes.
+
+Page locators (`p. 47`, `pp. 47–49`) are read from the citation and checked: a matched quote reports `pdf_page` (where it is in the PDF, linked from the HTML report) and `page_found`, the printed page number, when the PDF's numbering can be established from its running headers or from the bibliography entry's page range. A `quote_page_mismatch` is only raised when both sides are known and disagree; a PDF whose numbering is unknown never produces one.
 | `claim_verdict` | claims | by verdict | `supported` info · `partial` warning · `misrepresented`/`not_in_paper` error · `unverified` warning |
 
 ¹ Demoted to info with `--zotero-collection`: a collection is a reading library, so uncited entries are normal there.

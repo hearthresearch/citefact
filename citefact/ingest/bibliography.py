@@ -27,6 +27,7 @@ def load_bibtex(path: Path) -> dict[str, Source]:
             title=re.sub(r"[{}]", "", entry.get("title", "")),
             authors=entry.get("author", ""),
             year=year,
+            pages=entry.get("pages") or None,
         )
     return sources
 

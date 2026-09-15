@@ -112,6 +112,8 @@ def run_check(
             source.text = converted.text
             source.content_hash = converted.sha256
             source.conversion = converted.provenance()
+            if converted.page_map is not None:
+                source.page_map = converted.page_map.with_bib_pages(source.pages)
 
     # Citation parsing runs once; all levels share the preprocessed text so
     # character offsets stay consistent (Zotero wrappers stripped here).

@@ -6,6 +6,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from citefact.ingest.pages import PageMap
+
 SEVERITY_ORDER = {"error": 2, "warning": 1, "info": 0}
 
 
@@ -50,6 +52,10 @@ class Source:
     # Conversion provenance (converter, version, timestamp, text_layer);
     # None when the text is unavailable. text_layer False means OCR-derived.
     conversion: dict[str, Any] | None = None
+    # Bibliography page range as written ("233--250"); None when absent.
+    pages: str | None = None
+    # Where each offset of `text` sits in the PDF; None when not converted.
+    page_map: PageMap | None = None
 
     @property
     def converted(self) -> bool:

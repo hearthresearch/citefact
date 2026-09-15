@@ -297,3 +297,32 @@ class TestSectionTabs:
         html = write_report_html(_report(), tmp_path).read_text()
         assert "until-found" in html
         assert "beforematch" in html   # reveals -> tab syncs to that section
+
+
+class TestQuotePagesRender:
+    def _html(self, tmp_path, details):
+        report = _report()
+        report["findings"] = [Finding("quotes", "quote_verified", "info",
+                                      {"source_id": "smith2023", "quote": "q", **details}).to_dict()]
+        pdf = tmp_path / "s.pdf"
+        pdf.write_bytes(b"%PDF")
+        report["sources"][0]["pdf"] = str(pdf)
+        return write_report_html(report, tmp_path).read_text()
+
+    def test_found_page_links_to_the_pdf_page(self, tmp_path):
+        html = self._html(tmp_path, {"pdf_page": 2, "page_found": 226, "page_claimed": [226]})
+        assert "#page=2" in html
+        assert "p. 226" in html
+
+    def test_mismatch_shows_claimed_and_found(self, tmp_path):
+        report = _report()
+        report["findings"] = [Finding("quotes", "quote_page_mismatch", "warning",
+                                      {"source_id": "smith2023", "quote": "q", "pdf_page": 2,
+                                       "page_found": 226, "page_claimed": [225]}).to_dict()]
+        html = write_report_html(report, tmp_path).read_text()
+        assert "cited p. 225" in html and "found p. 226" in html
+
+    def test_unknown_numbering_shows_pdf_page_only(self, tmp_path):
+        html = self._html(tmp_path, {"pdf_page": 2, "page_found": None})
+        assert "PDF page 2" in html
+        assert "p. None" not in html

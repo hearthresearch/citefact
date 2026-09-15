@@ -8,6 +8,7 @@ of which parser ran.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from typing import Optional, Protocol
 
@@ -27,6 +28,9 @@ class Citation:
             year token ("in press", "n.d.", "2023a").
         start / end: Character offsets of `raw` in the manuscript. Used
             for position-sensitive claim extraction and UI linking.
+        locator: The page or part locator that followed the year, as
+            written ("p. 47", "pp. 47–49", "para. 3"), or None. Page
+            locators are expanded with `locator_pages`.
     """
 
     raw: str
@@ -34,6 +38,38 @@ class Citation:
     year: int | str
     start: int
     end: int
+    locator: str | None = None
+
+
+_PAGE_LOCATOR = re.compile(r"^pp?\.?\s*(?P<pages>[\d\s,\-\u2010-\u2015]+)$", re.IGNORECASE)
+_PAGE_RANGE = re.compile(r"(?P<a>\d+)\s*[\-\u2010-\u2015]\s*(?P<b>\d+)")
+
+
+def locator_pages(locator: str | None) -> list[int] | None:
+    """Page numbers a `p.`/`pp.` locator names, ranges expanded and in
+    order; None for a missing locator or one that is not about pages
+    (paragraphs, chapters, sections)."""
+    if locator is None:
+        return None
+    m = _PAGE_LOCATOR.match(locator.strip())
+    if m is None:
+        return None
+    pages: list[int] = []
+    for part in m.group("pages").split(","):
+        part = part.strip()
+        if not part:
+            continue
+        r = _PAGE_RANGE.fullmatch(part)
+        if r:
+            a, b = int(r.group("a")), int(r.group("b"))
+            if b < a:
+                return None
+            pages.extend(range(a, b + 1))
+        elif part.isdigit():
+            pages.append(int(part))
+        else:
+            return None
+    return pages or None
 
 
 @dataclass

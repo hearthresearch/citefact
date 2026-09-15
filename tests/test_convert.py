@@ -88,6 +88,13 @@ class TestConvertPdf:
         assert Store(tmp_path / ".citefact/pagebound").has(result.sha256, RECIPE.key)
         assert not shared_cache.exists()  # a fallback is never written
 
+    def test_page_map_comes_from_the_artifact_blocks(self, pdf, tmp_path, shared_cache, fake_docling):
+        result = convert_pdf(pdf, tmp_path / ".citefact")
+        pm = result.page_map
+        assert pm.page_count == 1
+        assert pm.pdf_page_at(0) == 1
+        assert pm.offset is None  # one page, no running header: unknown
+
     def test_second_call_reads_cache_without_converting(self, pdf, tmp_path, shared_cache, fake_docling):
         convert_pdf(pdf, tmp_path / ".citefact")
         convert_pdf(pdf, tmp_path / ".citefact")

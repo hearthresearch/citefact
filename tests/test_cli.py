@@ -60,6 +60,7 @@ class TestHelpForAgents:
         assert "orphan_citation" in result.output
         assert "source_truncated" in result.output
         assert "block quote" in result.output
+        assert "quote_page_mismatch" in result.output
 
     def test_dash_h_alias(self):
         result = runner.invoke(app, ["convert", "-h"])

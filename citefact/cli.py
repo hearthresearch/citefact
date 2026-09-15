@@ -180,7 +180,12 @@ def check(
     `form` inline for text between quotation marks or block for a Markdown
     `>` block quote, APA's form for 40+ words): quote_modified (error, with
     closest_match and similarity 0-100), quote_not_found (error),
-    quote_unattributed (warning), quote_verified (info); claims: claim_verdict with `verdict` supported (info), partial
+    quote_unattributed (warning), quote_page_mismatch (warning: found
+    verbatim, but not on the page the citation names), quote_verified
+    (info). A matched quote carries `pdf_page` (1-based page in the PDF),
+    `page_found` (the printed page number, null when the PDF's numbering
+    could not be established) and, when the citation had a `p.`/`pp.`
+    locator, `page_claimed` (list of pages); claims: claim_verdict with `verdict` supported (info), partial
     (warning), misrepresented / not_in_paper (error), unverified (warning:
     LLM failure, run marked partial), each with the verbatim `claim`, the
     source `evidence`, `reasoning` and `confidence` 0-100, plus

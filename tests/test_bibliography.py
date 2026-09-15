@@ -68,3 +68,12 @@ def test_strips_all_braces_from_title(tmp_path: Path):
     p.write_text(bib_with_braces, encoding="utf-8")
     sources = load_bibtex(p)
     assert sources["devlin2019"].title == "BERT: Pre-training of Deep Bidirectional Transformers"
+
+
+def test_pages_field_is_kept(tmp_path):
+    bib = tmp_path / "r.bib"
+    bib.write_text("@article{smith2023, title={T}, author={Smith, A}, year={2023}, pages={233--250}}\n"
+                   "@article{doe2021, title={U}, author={Doe, B}, year={2021}}\n", encoding="utf-8")
+    sources = load_bibtex(bib)
+    assert sources["smith2023"].pages == "233--250"
+    assert sources["doe2021"].pages is None

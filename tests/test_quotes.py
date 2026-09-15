@@ -1,5 +1,7 @@
 from citefact.checks.quotes import check_quotes, extract_quotes, normalize
 from citefact.citations.apa import ApaParser
+from citefact.checks.quotes import normalize_with_map
+from citefact.ingest.pages import PageMap
 from citefact.citations.base import Citation, MatchedCitation
 from citefact.models import Source
 
@@ -218,3 +220,106 @@ class TestBlockQuotes:
         sources = {**_sources(), "doe2021": Source(id="doe2021", title="U", authors="Doe", year=2021, text="unrelated")}
         findings = check_quotes(text, matched, sources)
         assert findings[0].details["quote"].endswith("measured dimension.")
+
+
+class TestNormalizeWithMap:
+    """`normalize` rewrites the text; the map gives, for every character of
+    the normalized text, the offset in the original it came from, so a
+    match position can be turned back into a PDF page."""
+
+    def test_normalized_text_equals_normalize(self):
+        raw = "The ﬁnal  “Word” eval-\nuation de fi nitely"
+        norm, _ = normalize_with_map(raw)
+        assert norm == normalize(raw)
+
+    def test_map_points_into_original(self):
+        raw = "Intro.   The eval-\nuation ﬁnished."
+        norm, m = normalize_with_map(raw)
+        assert len(m) == len(norm)
+        i = norm.index("evaluation")
+        assert raw[m[i]:m[i] + 4] == "eval"
+        j = norm.index("finished")
+        assert raw[m[j]] == "ﬁ"
+        k = norm.index("the")
+        assert raw[m[k]:m[k] + 3] == "The"
+
+
+def _paged_source(text, spans, offset):
+    return {"smith2023": Source(id="smith2023", title="T", authors="Smith", year=2023, text=text,
+                                page_map=PageMap(spans=spans, page_count=3, offset=offset))}
+
+
+class TestQuotePages:
+    # Source markdown: page 1 = chars [0, 60), page 2 = [60, len). Printed
+    # numbering starts at 225, so PDF page 2 is printed page 226.
+    TEXT = SOURCE_TEXT
+    SPANS = [(0, 60, 1), (60, len(SOURCE_TEXT), 2)]
+
+    def test_verified_quote_reports_pdf_and_printed_page(self):
+        text = 'They "preferred the assisted workflow in every measured dimension" (Smith, 2023, p. 226).'
+        findings = check_quotes(text, _parsed_cites(text), _paged_source(self.TEXT, self.SPANS, 224))
+        f = findings[0]
+        assert f.type == "quote_verified"
+        assert f.details["pdf_page"] == 2
+        assert f.details["page_found"] == 226
+        assert f.details["page_claimed"] == [226]
+
+    def test_wrong_page_is_a_mismatch_warning(self):
+        text = 'They "preferred the assisted workflow in every measured dimension" (Smith, 2023, p. 225).'
+        findings = check_quotes(text, _parsed_cites(text), _paged_source(self.TEXT, self.SPANS, 224))
+        f = findings[0]
+        assert f.type == "quote_page_mismatch"
+        assert f.severity == "warning"
+        assert f.details["page_found"] == 226
+        assert f.details["page_claimed"] == [225]
+
+    def test_unknown_printed_numbering_never_mismatches(self):
+        text = 'They "preferred the assisted workflow in every measured dimension" (Smith, 2023, p. 1).'
+        findings = check_quotes(text, _parsed_cites(text), _paged_source(self.TEXT, self.SPANS, None))
+        f = findings[0]
+        assert f.type == "quote_verified"
+        assert f.details["pdf_page"] == 2
+        assert f.details["page_found"] is None
+        assert f.details["page_claimed"] == [1]
+
+    def test_no_locator_verifies_with_page_found_only(self):
+        text = 'They "preferred the assisted workflow in every measured dimension" (Smith, 2023).'
+        findings = check_quotes(text, _parsed_cites(text), _paged_source(self.TEXT, self.SPANS, 224))
+        f = findings[0]
+        assert f.type == "quote_verified"
+        assert f.details["page_found"] == 226
+        assert "page_claimed" not in f.details
+
+    def test_source_without_page_map_has_no_page_fields(self):
+        text = 'They "preferred the assisted workflow in every measured dimension" (Smith, 2023, p. 3).'
+        findings = check_quotes(text, _parsed_cites(text), _sources())
+        assert findings[0].type == "quote_verified"
+        assert findings[0].details["page_claimed"] == [3]
+        assert "pdf_page" not in findings[0].details
+
+    def test_modified_quote_reports_page_of_closest_match(self):
+        text = 'They "preferred the assisted workflow in every single measured dimension" (Smith, 2023).'
+        findings = check_quotes(text, _parsed_cites(text), _paged_source(self.TEXT, self.SPANS, 224))
+        assert findings[0].type == "quote_modified"
+        assert findings[0].details["pdf_page"] == 2
+
+
+class TestCitationInsideInlineQuote:
+    def test_citation_inside_the_marks_is_the_quoted_authors_not_the_attribution(self):
+        # The quoted sentence itself cites Galal (2001); the manuscript's
+        # attribution is the parenthetical after the closing mark.
+        text = ('They wrote "preferred the assisted workflow in every measured dimension, '
+                'as Galal (2001) had" (Smith, 2023).')
+        cites = ApaParser().extract(text)
+        assert [c.raw for c in cites] == ["Galal (2001)", "Smith, 2023"]
+        matched = [MatchedCitation(cites[0], "galal2001", 0.9), MatchedCitation(cites[1], "smith2023", 0.95)]
+        sources = {**_sources(), "galal2001": Source(id="galal2001", title="G", authors="Galal", year=2001, text="nothing")}
+        findings = check_quotes(text, matched, sources)
+        assert findings[0].details["source_id"] == "smith2023"
+
+    def test_inline_quote_whose_only_citation_is_inside_is_unattributed(self):
+        text = 'They wrote "preferred the assisted workflow, as Galal (2001) had" and moved on.'
+        cites = ApaParser().extract(text)
+        matched = [MatchedCitation(cites[0], "galal2001", 0.9)]
+        findings = check_quotes(text, matched, _sources())
+        assert findings[0].type == "quote_unattributed"
