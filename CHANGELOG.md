@@ -2,7 +2,7 @@
 
 All notable changes to citefact. `report.json` carries `schema_version`; any change to its shape is recorded here.
 
-## Unreleased
+## 0.3.0 (2026-09-15)
 
 ### Added
 
