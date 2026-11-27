@@ -28,7 +28,7 @@ def _report():
 
 def test_schema_shape():
     r = _report()
-    assert r["schema_version"] == 3
+    assert r["schema_version"] == 4
     assert r["manuscript"]["file"] == "m.md"
     assert r["run"]["model"] == "anthropic/claude-sonnet-5"
     assert r["summary"] == {"errors": 1, "warnings": 1, "claims_total": 1,
@@ -51,7 +51,7 @@ def test_unconverted_source_has_no_conversion():
 def test_write_is_valid_json(tmp_path):
     p = write_report_json(_report(), tmp_path)
     assert p.name == "report.json"
-    assert json.loads(p.read_text())["schema_version"] == 3
+    assert json.loads(p.read_text())["schema_version"] == 4
 
 
 def test_word_diff_marks_insertions():

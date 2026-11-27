@@ -40,14 +40,17 @@ class Manuscript:
 
 @dataclass
 class Source:
-    """A bibliography entry plus everything learned about its PDF."""
+    """A bibliography entry plus everything learned about its PDF, or about
+    its saved web page when it has no PDF."""
 
     id: str
     title: str
     authors: str
     year: int | str | None
     pdf_path: Path | None = None
-    content_hash: str | None = None  # sha256 of the PDF bytes
+    # A saved copy of a web page (.html), read when there is no PDF.
+    snapshot_path: Path | None = None
+    content_hash: str | None = None  # sha256 of the PDF (or snapshot) bytes
     text: str | None = None  # converted markdown; None = unavailable
     # Conversion provenance (converter, version, timestamp, text_layer);
     # None when the text is unavailable. text_layer False means OCR-derived.
