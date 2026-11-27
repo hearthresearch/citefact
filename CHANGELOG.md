@@ -2,6 +2,16 @@
 
 All notable changes to citefact. `report.json` carries `schema_version`; any change to its shape is recorded here.
 
+## Unreleased
+
+### Added
+
+- Web pages can be sources. A bibliography entry with no PDF is checked against a saved copy of the page: a Zotero snapshot attachment (`text/html`), or an `.html`/`.htm` file in the `--pdfs` folder, matched by filename stem or by its `<title>` like a PDF. The page's visible text is read with the standard library (scripts, styles and other non-rendered elements dropped, character references decoded), so the quote and claims checks run on it unchanged. Nothing is fetched: the check stays offline, and the cited text is what the page said when it was saved. When an entry has both, the PDF is used.
+
+### report.json schema 4
+
+- `sources[]` carry `snapshot`: the path of the saved web page read for that source, or null. Its `conversion.converter` is `citefact-html`, with `text_layer` null.
+
 ## 0.3.0 (2026-09-15)
 
 ### Added

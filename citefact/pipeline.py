@@ -18,6 +18,7 @@ from citefact.ingest.bibliography import load_bibtex, to_catalog
 from citefact.ingest.convert import convert_pdf
 from citefact.ingest.manuscript import load_manuscript
 from citefact.ingest.pdfs import match_pdfs
+from citefact.ingest.web import convert_snapshot, is_snapshot
 from citefact.ingest.zotero import load_zotero_collection
 from citefact.models import SEVERITY_ORDER, line_of
 from citefact.progress import ProgressEvent, ProgressFn
@@ -93,9 +94,12 @@ def run_check(
         # Fill only the gaps: Zotero attachment paths already set stay set.
         unmatched = {sid: s for sid, s in sources.items() if s.pdf_path is None}
         matched_pdfs = match_pdfs(unmatched, pdf_dir)
-        say(f"✓ Matched {len(matched_pdfs)}/{len(unmatched)} sources to PDFs.")
-        for sid, pdf in matched_pdfs.items():
-            sources[sid].pdf_path = pdf
+        say(f"✓ Matched {len(matched_pdfs)}/{len(unmatched)} sources to PDFs or saved pages.")
+        for sid, path in matched_pdfs.items():
+            if is_snapshot(path):
+                sources[sid].snapshot_path = path
+            else:
+                sources[sid].pdf_path = path
 
     to_convert = [s for s in sources.values()
                   if s.pdf_path is not None and s.text is None]
@@ -114,6 +118,16 @@ def run_check(
             source.conversion = converted.provenance()
             if converted.page_map is not None:
                 source.page_map = converted.page_map.with_bib_pages(source.pages)
+
+    # A saved web page stands in for a missing PDF: read as-is, no
+    # converter, no network.
+    for source in sources.values():
+        if source.text is None and source.pdf_path is None and source.snapshot_path is not None:
+            converted = convert_snapshot(source.snapshot_path)
+            if converted is not None:
+                source.text = converted.text
+                source.content_hash = converted.sha256
+                source.conversion = converted.provenance()
 
     # Citation parsing runs once; all levels share the preprocessed text so
     # character offsets stay consistent (Zotero wrappers stripped here).

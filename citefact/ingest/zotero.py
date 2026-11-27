@@ -108,12 +108,12 @@ def _source_key(authors: str, year: int | None, taken: set[str]) -> str:
     return candidate
 
 
-def _pdf_path(zot: Any, item_key: str) -> Path | None:
-    for child in zot.everything(zot.children(item_key)):
+def _attachment_path(children: list[dict], content_type: str) -> Path | None:
+    for child in children:
         data = child.get("data", {})
         if data.get("itemType") != "attachment":
             continue
-        if data.get("contentType") != "application/pdf":
+        if data.get("contentType") != content_type:
             continue
         href = child.get("links", {}).get("enclosure", {}).get("href", "")
         if href.startswith("file://"):
@@ -128,7 +128,8 @@ def _pdf_path(zot: Any, item_key: str) -> Path | None:
 
 
 def load_zotero_collection(name: str) -> dict[str, Source]:
-    """Load a Zotero collection as bibliography sources with PDF paths.
+    """Load a Zotero collection as bibliography sources with PDF paths
+    and, for saved web pages, snapshot paths.
 
     Raises RuntimeError when the local API is unreachable (Zotero not
     running) and ValueError for unknown/ambiguous collection names.
@@ -156,11 +157,14 @@ def load_zotero_collection(name: str) -> dict[str, Source]:
             continue
         year = _year_of(data.get("date", ""))
         key = _source_key(authors, year, set(sources))
+        children = zot.everything(zot.children(item["key"]))
         sources[key] = Source(
             id=key,
             title=title,
             authors=authors,
             year=year,
-            pdf_path=_pdf_path(zot, item["key"]),
+            pdf_path=_attachment_path(children, "application/pdf"),
+            # Zotero saves a web page as an HTML snapshot attachment.
+            snapshot_path=_attachment_path(children, "text/html"),
         )
     return sources

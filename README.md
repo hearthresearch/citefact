@@ -53,6 +53,7 @@ Every claim verdict (`supported` / `partial` / `misrepresented` / `not_in_paper`
 ## ✨ Why researchers keep it in the loop
 
 - 📚 **Zotero-native** - point it at a collection and it reads metadata and attached PDFs through Zotero's local API; no exports, no Better BibTeX
+- 🌐 **Web sources too** - a cited web page is checked against its saved copy: a Zotero snapshot, or an `.html` file in the `--pdfs` folder. Nothing is fetched
 - 🔒 **Keyless mode** - `--skip-claims` catches fabricated citations and altered quotes with zero network calls
 - 🤖 **Your LLM, your key** - Anthropic, OpenAI, or fully local via Ollama, all through [LiteLLM](https://docs.litellm.ai/)
 - 📊 **One-file report** - self-contained HTML (no CDN, no requests), with every citation's status, word-level diffs for altered quotes, and one-click links to the manuscript and each source PDF
@@ -126,7 +127,7 @@ Report: citefact-report/report.html
 |---|---|---|
 | `--bib FILE` | | BibTeX bibliography (this or `--zotero-collection`) |
 | `--zotero-collection NAME` | | Zotero collection (name or `"Parent/Child"` path); needs Zotero 7+ running |
-| `--pdfs DIR` | | Folder of source PDFs, fuzzy-matched to entries lacking one |
+| `--pdfs DIR` | | Folder of source PDFs (and saved `.html` pages for web sources), fuzzy-matched to entries lacking one |
 | `--skip-claims` | off | Citations + quotes only: free, keyless |
 | `--only LEVELS` | all | Comma-separated subset: `citations,quotes,claims` |
 | `--model` / `--provider` | `anthropic/claude-sonnet-5` | LLM for the claims check |
@@ -186,6 +187,7 @@ uvx citefact check manuscript.md --bib refs.bib --model ollama/llama3.1
 - Author-year (APA-like) citation styles only; numeric styles (Vancouver/IEEE) are on the roadmap
 - Markdown manuscripts only in v0.1 (DOCX next; the manuscript itself cannot be a PDF)
 - You supply the source PDFs; there is no automatic retrieval by DOI
+- A web source is checked against the copy you saved, not the live page; save it when you read it. Page locators don't apply to web pages
 - The first PDF conversion downloads the Docling environment (~1-2 GB, one-time) into the `uv` cache
 - Claim verdicts are AI suggestions with the usual LLM failure modes; that is why every verdict carries its evidence
 

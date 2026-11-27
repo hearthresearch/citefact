@@ -118,7 +118,8 @@ def check(
     pdfs: Optional[Path] = typer.Option(
         None, "--pdfs", exists=True, file_okay=False,
         help="Directory of source PDFs, matched to entries by filename stem "
-             "(= BibTeX key) or by title. Entries without a PDF become "
+             "(= BibTeX key) or by title. A saved web page (.html) stands in "
+             "for a web source; nothing is fetched. Entries without either become "
              "missing_source findings; quotes and claims against them are "
              "skipped, never the run.",
     ),
@@ -169,14 +170,15 @@ def check(
     PDFs are converted once and cached (.citefact/ next to the manuscript);
     an unchanged re-run is seconds and costs nothing.
 
-    report.json (schema_version 3): `summary` {errors, warnings,
+    report.json (schema_version 4): `summary` {errors, warnings,
     claims_total, verdicts, sources_truncated: source ids whose text was cut
-    to CITEFACT_MAX_SOURCE_CHARS before the model read it}; `sources[]` {id, title, converted, conversion:
-    {converter_version, text_layer}}, where text_layer false means OCR text;
+    to CITEFACT_MAX_SOURCE_CHARS before the model read it}; `sources[]` {id, title, pdf, snapshot,
+    converted, conversion: {converter_version, text_layer}}, where
+    text_layer false means OCR text and snapshot is a saved web page;
     `findings[]` each with `level`, `type`, `severity` and a `location`
     line. Types by level: citations: orphan_citation (error: cited, not in
     the bibliography), uncited_reference (warning; info with Zotero),
-    missing_source (warning: no PDF or unconvertible); quotes (each with
+    missing_source (warning: no PDF or saved page, or unreadable); quotes (each with
     `form` inline for text between quotation marks or block for a Markdown
     `>` block quote, APA's form for 40+ words): quote_modified (error, with
     closest_match and similarity 0-100), quote_not_found (error),

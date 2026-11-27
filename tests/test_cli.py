@@ -124,7 +124,7 @@ def test_check_json_streams_report_to_stdout(tmp_path: Path):
 
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
-    assert payload["schema_version"] == 3
+    assert payload["schema_version"] == 4
     # --quiet silences progress; stdout carries only the JSON report.
 
 

@@ -1,10 +1,11 @@
-"""Match PDFs in a folder to bibliography entries.
+"""Match PDFs (and saved web pages) in a folder to bibliography entries.
 
 Strategy per PDF: exact filename-stem match against source ids first,
 then fuzzy scoring of the bibliography title against PDF-embedded
 metadata title and first-page text. Greedy one-to-one assignment by
 descending score. Unresolvable PDFs are skipped; the corresponding
-sources surface later as `missing_source` findings.
+sources surface later as `missing_source` findings. A saved web page
+(`.html`/`.htm`) is matched the same way, using its `<title>` and text.
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ from pathlib import Path
 from pypdf import PdfReader
 from rapidfuzz import fuzz
 
+from citefact.ingest.web import SNAPSHOT_SUFFIXES, is_snapshot, snapshot_text, snapshot_title
 from citefact.models import Source
 
 log = logging.getLogger(__name__)
@@ -25,6 +27,8 @@ _MIN_TITLE_SCORE = 70
 def _pdf_probe(path: Path) -> tuple[str, str]:
     """Return (embedded metadata title, first-page text). Never raises:
     a corrupt PDF probes as empty and simply won't match."""
+    if is_snapshot(path):
+        return snapshot_title(path), snapshot_text(path)[:4000]
     try:
         reader = PdfReader(path)
         meta_title = (reader.metadata.title or "") if reader.metadata else ""
@@ -50,7 +54,10 @@ def _score(source: Source, stem: str, meta_title: str, first_page: str) -> float
 
 
 def match_pdfs(sources: dict[str, Source], pdf_dir: Path) -> dict[str, Path]:
-    pdfs = sorted(pdf_dir.glob("*.pdf")) + sorted(pdf_dir.glob("*.PDF"))
+    # PDFs first, so a PDF wins over a saved page when both could match.
+    pdfs = sorted((p for p in pdf_dir.iterdir()
+                   if p.is_file() and p.suffix.lower() in (".pdf", *SNAPSHOT_SUFFIXES)),
+                  key=lambda p: (is_snapshot(p), p.name))
     matched: dict[str, Path] = {}
     remaining = dict(sources)
 

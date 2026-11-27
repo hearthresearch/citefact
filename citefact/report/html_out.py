@@ -82,7 +82,7 @@ def write_report_html(report: dict[str, Any], out_dir: Path) -> Path:
             return None
 
     pdf_links = {
-        sid: _file_uri(s.get("pdf")) for sid, s in sources_by_id.items()
+        sid: _file_uri(s.get("pdf") or s.get("snapshot")) for sid, s in sources_by_id.items()
     }
     manuscript_link = _file_uri(report["manuscript"].get("path"))
 
